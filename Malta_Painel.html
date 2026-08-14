@@ -7,6 +7,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=Inter:wght@400;450;500;600&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
 <style>
   :root{
     --bg:#0b0c10; --surface:#15171f; --surface-2:#1c1f2a; --surface-3:#262a38;
@@ -512,6 +515,30 @@
 <div class="modal-bg" id="modalBg"><div class="modal" id="modalBox"></div></div>
 
 <script>
+/* ============ FIREBASE (shared storage) ============
+   1. Crie um projeto em https://console.firebase.google.com
+   2. Adicione um "Web App" e copie o objeto de config para baixo.
+   3. Ative Firestore Database e Authentication > Sign-in method > Anonymous.
+   4. Nas regras do Firestore, use algo como:
+      match /smcentral/{doc} { allow read, write: if request.auth != null; }
+*/
+const firebaseConfig = {
+  apiKey: "AIzaSyBQ6KTj9mS0JM-x3T13n3uwo1KA6YJwSYk",
+  authDomain: "maltaapp-bfb09.firebaseapp.com",
+  projectId: "maltaapp-bfb09",
+  storageBucket: "maltaapp-bfb09.firebasestorage.app",
+  messagingSenderId: "967633929471",
+  appId: "1:967633929471:web:5c00e77db61587276838ca",
+  measurementId: "G-10BYF83PL3"
+};
+const firebaseEnabled = firebaseConfig.apiKey !== "COLE_AQUI";
+let db=null, docRef=null, applyingRemote=false, saveTimer=null;
+if(firebaseEnabled){
+  firebase.initializeApp(firebaseConfig);
+  db = firebase.firestore();
+  docRef = db.collection('smcentral').doc('shared');
+}
+
 /* ============ STATE ============ */
 const PALETTE = ['#7c8cf8','#5fd0a0','#e6b45f','#e5698a','#6fc4e6','#c07ef0','#e6845f','#8bd05f'];
 const DEFAULT = {
@@ -528,14 +555,43 @@ function load(){
   try{ const r = JSON.parse(localStorage.getItem('smcentral')); return r?{...DEFAULT,...r}:{...DEFAULT}; }
   catch(e){ return {...DEFAULT}; }
 }
-function save(){ localStorage.setItem('smcentral', JSON.stringify(S)); }
+function save(){
+  localStorage.setItem('smcentral', JSON.stringify(S));
+  if(!firebaseEnabled || applyingRemote) return;
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(()=>{ docRef.set({data:JSON.stringify(S)}).catch(e=>console.error('Erro ao sincronizar:', e)); }, 400);
+}
 function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
 function esc(s){ return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
 /* seed a couple clients on first run */
-if(S.clients.length===0){
+if(!firebaseEnabled && S.clients.length===0){
   S.clients=[{id:uid(),name:'Cliente A',color:PALETTE[0]},{id:uid(),name:'Cliente B',color:PALETTE[1]}];
   save();
+}
+
+async function initSync(){
+  if(!firebaseEnabled) return;
+  await firebase.auth().signInAnonymously();
+  docRef.onSnapshot({includeMetadataChanges:true}, snap=>{
+    if(snap.metadata.hasPendingWrites) return; // eco da própria escrita local
+    if(!snap.exists){
+      if(S.clients.length===0){
+        S.clients=[{id:uid(),name:'Cliente A',color:PALETTE[0]},{id:uid(),name:'Cliente B',color:PALETTE[1]}];
+      }
+      docRef.set({data:JSON.stringify(S)}).catch(e=>console.error('Erro ao criar documento:', e));
+      return;
+    }
+    let remote;
+    try{ remote = {...DEFAULT, ...JSON.parse(snap.data().data)}; }
+    catch(e){ console.error('Documento remoto inválido:', e); return; }
+    if(JSON.stringify(remote)===JSON.stringify(S)) return;
+    applyingRemote = true;
+    S = remote;
+    localStorage.setItem('smcentral', JSON.stringify(S));
+    renderAll(); renderBadges(); paintTimer();
+    applyingRemote = false;
+  }, e=>console.error('Erro ao sincronizar:', e));
 }
 
 function clientById(id){ return S.clients.find(c=>c.id===id); }
@@ -1215,8 +1271,10 @@ function tickClock(){
 
 /* ============ RESET ============ */
 document.getElementById('resetBtn').onclick=()=>{
-  if(confirm('Isso apaga tudo (clientes, tarefas, calendário...). Não dá pra desfazer. Continuar?')){
-    localStorage.removeItem('smcentral'); location.reload();
+  if(confirm('Isso apaga tudo (clientes, tarefas, calendário...) para todo mundo. Não dá pra desfazer. Continuar?')){
+    localStorage.removeItem('smcentral');
+    if(firebaseEnabled) docRef.delete().finally(()=>location.reload());
+    else location.reload();
   }
 };
 
@@ -1224,6 +1282,7 @@ document.getElementById('resetBtn').onclick=()=>{
 checkDay(); document.getElementById('pCount').textContent=S.pCount;
 switchView(S.activeView||'tasks');
 renderAll(); paintTimer(); tickClock(); setInterval(tickClock,10000);
+initSync();
 </script>
 </body>
 </html>
