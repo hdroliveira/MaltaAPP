@@ -737,6 +737,7 @@ const firebaseConfig = {
 };
 const firebaseEnabled = firebaseConfig.apiKey !== "COLE_AQUI";
 let db=null, docRef=null, applyingRemote=false, saveTimer=null, myEmail='';
+let hasSynced=false; // true only after the first real snapshot arrives from Firestore
 let myRole='admin', myClientId=null;
 if(firebaseEnabled){
   firebase.initializeApp(firebaseConfig);
@@ -763,6 +764,7 @@ function load(){
 function save(){
   localStorage.setItem('smcentral', JSON.stringify(S));
   if(!firebaseEnabled || applyingRemote) return;
+  if(!hasSynced) return; // evita sobrescrever o Firestore com dados locais desatualizados antes da 1ª sincronização
   clearTimeout(saveTimer);
   saveTimer = setTimeout(()=>{
     docRef.set({data:JSON.stringify(S)}).catch(e=>console.error('Erro ao sincronizar:', e));
@@ -786,7 +788,8 @@ let unsubscribeSync=null;
 function startSync(){
   if(unsubscribeSync) return; // já sincronizando
   unsubscribeSync = docRef.onSnapshot({includeMetadataChanges:true}, snap=>{
-    if(snap.metadata.hasPendingWrites) return; // eco da própria escrita local
+    if(snap.metadata.hasPendingWrites){ hasSynced=true; return; } // eco da própria escrita local
+    hasSynced=true;
     if(!snap.exists){
       if(S.clients.length===0){
         S.clients=[{id:uid(),name:'Cliente A',color:PALETTE[0]},{id:uid(),name:'Cliente B',color:PALETTE[1]}];
