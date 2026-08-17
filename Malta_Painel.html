@@ -82,6 +82,12 @@
   .section-sub{color:var(--muted);font-size:13px;margin-top:2px}
   .clock{margin-left:auto;text-align:right;color:var(--muted);font-size:12.5px;font-variant-numeric:tabular-nums}
   .clock b{display:block;color:var(--text);font-size:13.5px;font-weight:500;text-transform:capitalize}
+  .sync-badge{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--muted);padding:5px 11px;border-radius:20px;background:var(--surface-2);border:1px solid var(--border);white-space:nowrap}
+  .sync-badge .dot{width:7px;height:7px;border-radius:50%;background:#5fd0a0;flex-shrink:0}
+  .sync-badge.syncing .dot{background:#e6b45f;animation:sync-pulse 1s ease-in-out infinite}
+  .sync-badge.error{color:#e5698a;border-color:#e5698a;cursor:pointer}
+  .sync-badge.error .dot{background:#e5698a}
+  @keyframes sync-pulse{0%,100%{opacity:1}50%{opacity:.35}}
 
   /* client filter pills */
   .clients{display:flex;gap:7px;align-items:center;flex-wrap:wrap;padding-bottom:16px;border-bottom:1px solid var(--border-soft)}
@@ -546,6 +552,7 @@
         <div class="section-title" id="viewTitle">Tarefas</div>
         <div class="section-sub" id="viewSub">O que precisa sair hoje</div>
       </div>
+      <div class="sync-badge" id="syncBadge" title="Sincronizado com o servidor" onclick="showSyncDetail()"><span class="dot"></span><span id="syncBadgeText">Sincronizado</span></div>
       <div class="clock"><b id="clkDate">—</b><span id="clkTime">—</span></div>
     </div>
     <div class="clients" id="clients"></div>
@@ -738,6 +745,19 @@ const firebaseConfig = {
 const firebaseEnabled = firebaseConfig.apiKey !== "COLE_AQUI";
 let db=null, docRef=null, applyingRemote=false, saveTimer=null, myEmail='';
 let hasSynced=false; // true only after the first real snapshot arrives from Firestore
+let lastSyncError=null;
+function setSyncBadge(state, detail){
+  lastSyncError = state==='error' ? (detail||'Erro desconhecido') : null;
+  const el=document.getElementById('syncBadge'), txt=document.getElementById('syncBadgeText');
+  if(!el) return;
+  el.className='sync-badge '+state;
+  if(state==='ok'){ txt.textContent='Sincronizado'; el.title='Alterações estão sendo salvas no servidor e chegam aos outros dispositivos.'; }
+  else if(state==='syncing'){ txt.textContent='Sincronizando…'; el.title='Enviando alterações para o servidor.'; }
+  else { txt.textContent='Falha ao sincronizar'; el.title='Clique para ver o erro. As alterações NÃO estão chegando aos outros dispositivos — ficaram salvas só neste PC.'; }
+}
+function showSyncDetail(){
+  if(lastSyncError) alert('Falha ao sincronizar com o servidor:\n\n'+lastSyncError+'\n\nAs alterações feitas neste PC ficaram salvas apenas localmente até isso ser resolvido.');
+}
 let myRole='admin', myClientId=null;
 if(firebaseEnabled){
   firebase.initializeApp(firebaseConfig);
@@ -766,8 +786,11 @@ function save(){
   if(!firebaseEnabled || applyingRemote) return;
   if(!hasSynced) return; // evita sobrescrever o Firestore com dados locais desatualizados antes da 1ª sincronização
   clearTimeout(saveTimer);
+  setSyncBadge('syncing');
   saveTimer = setTimeout(()=>{
-    docRef.set({data:JSON.stringify(S)}).catch(e=>console.error('Erro ao sincronizar:', e));
+    docRef.set({data:JSON.stringify(S)})
+      .then(()=>setSyncBadge('ok'))
+      .catch(e=>{ console.error('Erro ao sincronizar:', e); setSyncBadge('error', e.message); });
   }, 400);
 }
 function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
@@ -787,9 +810,11 @@ if(!firebaseEnabled && S.clients.length===0){
 let unsubscribeSync=null;
 function startSync(){
   if(unsubscribeSync) return; // já sincronizando
+  setSyncBadge('syncing');
   unsubscribeSync = docRef.onSnapshot({includeMetadataChanges:true}, snap=>{
     if(snap.metadata.hasPendingWrites){ hasSynced=true; return; } // eco da própria escrita local
     hasSynced=true;
+    setSyncBadge('ok');
     if(!snap.exists){
       // documento sumiu no servidor (ex: reset) — adota o estado vazio em vez de
       // recriar o doc com o que esta aba ainda tinha em memória, senão qualquer
@@ -813,7 +838,7 @@ function startSync(){
     resolveRole(); applyRoleUI();
     renderAll(); renderBadges(); paintTimer();
     applyingRemote = false;
-  }, e=>console.error('Erro ao sincronizar:', e));
+  }, e=>{ console.error('Erro ao sincronizar:', e); setSyncBadge('error', e.message); });
 }
 
 /* ============ ROLES (admin vs. client) ============
@@ -836,7 +861,7 @@ function applyRoleUI(){
 
 function initAuth(){
   const gate=document.getElementById('loginGate'), root=document.getElementById('appRoot');
-  if(!firebaseEnabled){ gate.hidden=true; root.hidden=false; document.getElementById('logoutBtn').hidden=true; resolveRole(); applyRoleUI(); return; }
+  if(!firebaseEnabled){ gate.hidden=true; root.hidden=false; document.getElementById('logoutBtn').hidden=true; document.getElementById('syncBadge').hidden=true; resolveRole(); applyRoleUI(); return; }
   document.getElementById('logoutBtn').onclick=()=>firebase.auth().signOut();
   firebase.auth().onAuthStateChanged(user=>{
     myEmail = user ? user.email : '';
