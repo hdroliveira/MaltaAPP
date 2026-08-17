@@ -67,9 +67,12 @@
   .nav-item .badge{margin-left:auto;font-size:11px;background:var(--surface-3);color:var(--muted);
     padding:1px 7px;border-radius:20px;font-variant-numeric:tabular-nums}
 
-  .rail-foot{margin-top:auto;padding:12px;border-top:1px solid var(--border-soft)}
-  .rail-foot button{width:100%;font-size:12px;color:var(--muted);padding:8px;border-radius:var(--radius-sm);text-align:left}
+  .rail-foot{margin-top:auto;padding:12px;border-top:1px solid var(--border-soft);display:flex;gap:6px}
+  .rail-foot button{font-size:12px;color:var(--muted);padding:8px;border-radius:var(--radius-sm);text-align:left}
   .rail-foot button:hover{background:var(--surface-2);color:var(--text)}
+  #logoutBtn{flex:1}
+  #settingsBtn{flex:0 0 auto;width:34px;display:flex;align-items:center;justify-content:center}
+  #settingsBtn svg{width:16px;height:16px}
 
   /* ---------- Main ---------- */
   .main{flex:1;min-width:0;display:flex;flex-direction:column;height:100vh;overflow:hidden}
@@ -529,7 +532,9 @@
   </nav>
   <div class="rail-foot">
     <button id="logoutBtn">Sair</button>
-    <button id="resetBtn" class="role-admin-only">Limpar todos os dados</button>
+    <button id="settingsBtn" class="role-admin-only" title="Configurações" aria-label="Configurações">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    </button>
   </div>
 </aside>
 
@@ -1996,14 +2001,25 @@ function tickClock(){
   document.getElementById('clkTime').textContent=n.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
 }
 
-/* ============ RESET ============ */
-document.getElementById('resetBtn').onclick=()=>{
-  if(confirm('Isso apaga tudo (clientes, tarefas, calendário...) para todo mundo. Não dá pra desfazer. Continuar?')){
-    localStorage.removeItem('smcentral');
-    if(firebaseEnabled) docRef.delete().finally(()=>location.reload());
-    else location.reload();
-  }
-};
+/* ============ SETTINGS / RESET ============ */
+function openSettingsModal(){
+  mBox.classList.remove('lg');
+  mBox.innerHTML=`<h3>Configurações</h3>
+    <div class="modal-sec" style="margin-top:0;padding-top:0;border-top:none">Zona de risco</div>
+    <button class="btn ghost" style="width:100%;background:rgba(229,105,138,.14);color:var(--danger);border-color:transparent" onclick="resetAllData()">Limpar todos os dados</button>
+    <div class="modal-foot"><button class="btn ghost" onclick="closeModal()">Fechar</button></div>`;
+  mBg.classList.add('open');
+}
+document.getElementById('settingsBtn').onclick=openSettingsModal;
+
+function resetAllData(){
+  if(!confirm('Isso apaga tudo (clientes, tarefas, calendário...) para todo mundo. Não dá pra desfazer. Tem certeza que quer continuar?')) return;
+  if(!confirm('Confirmação final: os dados serão apagados AGORA e não tem como recuperar. Continuar mesmo assim?')) return;
+  closeModal();
+  localStorage.removeItem('smcentral');
+  if(firebaseEnabled) docRef.delete().finally(()=>location.reload());
+  else location.reload();
+}
 
 /* ============ INIT ============ */
 checkDay(); document.getElementById('pCount').textContent=S.pCount;
