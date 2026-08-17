@@ -240,6 +240,22 @@
   .fin-status.pendente{background:rgba(230,180,95,.14);color:var(--warn)}
   .fin-status.atrasado{background:rgba(229,105,138,.14);color:var(--danger)}
 
+  .fin-yearly{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+    padding:16px 18px;margin-bottom:20px;box-shadow:0 1px 2px rgba(0,0,0,.16)}
+  .fin-yearly-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px}
+  .fin-yearly-head h3{font-family:var(--display);font-size:15px;font-weight:600}
+  .fin-yearly-head select{width:auto;min-width:90px}
+  .fin-yearly-wrap{overflow-x:auto}
+  .fin-yearly-table{width:100%;border-collapse:collapse;font-size:13px}
+  .fin-yearly-table th,.fin-yearly-table td{padding:7px 10px;text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+  .fin-yearly-table th:first-child,.fin-yearly-table td:first-child{text-align:left;font-variant-numeric:normal}
+  .fin-yearly-table thead th{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;
+    border-bottom:1px solid var(--border-soft);font-weight:600}
+  .fin-yearly-table tbody td{border-bottom:1px solid var(--border-soft);color:var(--text)}
+  .fin-yearly-table tbody tr.cur td{background:var(--accent-ghost)}
+  .fin-yearly-table tbody tr:hover td{background:var(--surface-2)}
+  .fin-yearly-table tfoot td{font-family:var(--display);font-weight:700;padding-top:9px}
+
   /* ---------- Calendar ---------- */
   .cal-head{display:flex;align-items:center;gap:12px;margin-bottom:16px}
   .cal-head h3{font-family:var(--display);font-size:18px;font-weight:600;text-transform:capitalize;min-width:170px}
@@ -589,6 +605,13 @@
     <!-- FINANCEIRO (admin only) -->
     <section class="view" id="v-finance">
       <div class="fin-summary" id="finSummary"></div>
+      <div class="fin-yearly">
+        <div class="fin-yearly-head">
+          <h3>Faturamento anual</h3>
+          <select id="finYear" onchange="renderFinance()"></select>
+        </div>
+        <div class="fin-yearly-wrap"><table class="fin-yearly-table" id="finYearlyTable"></table></div>
+      </div>
       <div class="row-add">
         <input id="finDesc" placeholder="Descrição — ex.: Mensalidade agosto">
         <select id="finClient"></select>
@@ -1044,6 +1067,7 @@ function renderAssignments(){
    O valor mensal do contrato fica no perfil do cliente (monthlyFee) e só
    alimenta o resumo de receita recorrente aqui, não gera cobrança sozinho. */
 const finCurrency = new Intl.NumberFormat('pt-PT',{style:'currency',currency:'EUR'});
+const MONTH_NAMES=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 function todayStr(){ return new Date().toISOString().slice(0,10); }
 function finStatus(f){ if(f.status==='pago') return 'pago'; return (f.dueDate && f.dueDate<todayStr()) ? 'atrasado' : 'pendente'; }
 function fmtDateBR(v){ if(!v)return ''; const [y,m,d]=v.split('-'); return `${d}/${m}/${y}`; }
@@ -1089,6 +1113,8 @@ function renderFinance(){
     <div class="fin-card danger"><div class="fl">Em atraso</div><div class="fv">${finCurrency.format(overdue)}</div></div>
     <div class="fin-card"><div class="fl">Receita mensal recorrente</div><div class="fv">${finCurrency.format(mrr)}</div></div>`;
 
+  renderFinanceYearly(list);
+
   const el=document.getElementById('finList'); if(!el)return;
   if(!list.length){ el.innerHTML=empty('Nenhuma cobrança lançada','Adicione a primeira acima para organizar os pagamentos.'); return; }
   const order={atrasado:0,pendente:1,pago:2};
@@ -1104,6 +1130,38 @@ function renderFinance(){
       <button class="iconbtn del" onclick="delFinance('${f.id}')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button>
     </div>`;
   }).join('');
+}
+
+/* Faturamento anual — soma por mês (vencimento) o total faturado e o total recebido,
+   pra dar uma visão de quanto entrou/foi cobrado ano a ano, com filtro de ano. */
+function renderFinanceYearly(list){
+  const yearSel=document.getElementById('finYear'); const tbl=document.getElementById('finYearlyTable');
+  if(!yearSel||!tbl)return;
+  const nowY=new Date().getFullYear();
+  const years=new Set([nowY]);
+  list.forEach(f=>{ if(f.dueDate) years.add(+f.dueDate.slice(0,4)); });
+  const sortedYears=[...years].sort((a,b)=>b-a);
+  const prevYear=yearSel.value;
+  yearSel.innerHTML=sortedYears.map(y=>`<option value="${y}">${y}</option>`).join('');
+  yearSel.value = sortedYears.includes(+prevYear) ? prevYear : String(nowY);
+  const year=yearSel.value;
+
+  const totals=Array.from({length:12},()=>({billed:0,received:0}));
+  list.forEach(f=>{
+    if(!f.dueDate || f.dueDate.slice(0,4)!==year) return;
+    const m=+f.dueDate.slice(5,7)-1;
+    totals[m].billed+=f.amount;
+    if(f.status==='pago') totals[m].received+=f.amount;
+  });
+  const yearBilled=totals.reduce((s,t)=>s+t.billed,0);
+  const yearReceived=totals.reduce((s,t)=>s+t.received,0);
+  const curM=(year===String(nowY))?new Date().getMonth():-1;
+  tbl.innerHTML=`
+    <thead><tr><th>Mês</th><th>Faturado</th><th>Recebido</th></tr></thead>
+    <tbody>${MONTH_NAMES.map((name,i)=>`
+      <tr class="${i===curM?'cur':''}"><td>${name}</td><td>${finCurrency.format(totals[i].billed)}</td><td>${finCurrency.format(totals[i].received)}</td></tr>`).join('')}
+    </tbody>
+    <tfoot><tr><td>Total ${year}</td><td>${finCurrency.format(yearBilled)}</td><td>${finCurrency.format(yearReceived)}</td></tr></tfoot>`;
 }
 
 /* ============ TASKS ============ */
