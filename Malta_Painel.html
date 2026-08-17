@@ -2019,6 +2019,8 @@ function resetAllData(){
   if(!confirm('Isso apaga tudo (clientes, tarefas, calendário...) para todo mundo. Não dá pra desfazer. Tem certeza que quer continuar?')) return;
   if(!confirm('Confirmação final: os dados serão apagados AGORA e não tem como recuperar. Continuar mesmo assim?')) return;
   closeModal();
+  if(unsubscribeSync){ unsubscribeSync(); unsubscribeSync=null; } // evita que o listener recrie o doc com os dados antigos em memória
+  S = {...DEFAULT};
   localStorage.removeItem('smcentral');
   if(firebaseEnabled) docRef.delete().finally(()=>location.reload());
   else location.reload();
