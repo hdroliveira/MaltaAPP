@@ -580,7 +580,7 @@
       <div class="row-add">
         <input id="finDesc" placeholder="Descrição — ex.: Mensalidade agosto">
         <select id="finClient"></select>
-        <input id="finAmount" type="number" step="0.01" min="0" placeholder="Valor (R$)">
+        <input id="finAmount" type="number" step="0.01" min="0" placeholder="Valor (€)">
         <input id="finDue" type="date">
         <button class="btn" onclick="addFinance()">Adicionar cobrança</button>
       </div>
@@ -1005,7 +1005,7 @@ function renderAssignments(){
    Cobranças manuais por cliente — quanto, quando vence e se já foi pago.
    O valor mensal do contrato fica no perfil do cliente (monthlyFee) e só
    alimenta o resumo de receita recorrente aqui, não gera cobrança sozinho. */
-const finCurrency = new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'});
+const finCurrency = new Intl.NumberFormat('pt-PT',{style:'currency',currency:'EUR'});
 function todayStr(){ return new Date().toISOString().slice(0,10); }
 function finStatus(f){ if(f.status==='pago') return 'pago'; return (f.dueDate && f.dueDate<todayStr()) ? 'atrasado' : 'pendente'; }
 function fmtDateBR(v){ if(!v)return ''; const [y,m,d]=v.split('-'); return `${d}/${m}/${y}`; }
@@ -1773,7 +1773,7 @@ function clientModalBody(c){
 
     <div class="modal-sec">Financeiro</div>
     <div class="field">
-      <label>Valor mensal do contrato (R$)</label>
+      <label>Valor mensal do contrato (€)</label>
       <input id="mCMonthlyFee" type="number" step="0.01" min="0" placeholder="Ex.: 1500.00" value="${c?.monthlyFee||''}">
       <div class="cred-hint">Usado só para o resumo na aba Financeiro (receita mensal recorrente) — não gera cobrança automática.</div>
     </div>
