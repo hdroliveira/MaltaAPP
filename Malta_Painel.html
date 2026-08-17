@@ -2022,7 +2022,7 @@ function resetAllData(){
   if(unsubscribeSync){ unsubscribeSync(); unsubscribeSync=null; } // evita que o listener recrie o doc com os dados antigos em memória
   S = {...DEFAULT};
   localStorage.removeItem('smcentral');
-  if(firebaseEnabled) docRef.delete().finally(()=>location.reload());
+  if(firebaseEnabled) docRef.delete().catch(e=>{ console.error('Erro ao apagar dados:', e); alert('Não foi possível apagar os dados no servidor: '+e.message); }).finally(()=>location.reload());
   else location.reload();
 }
 
