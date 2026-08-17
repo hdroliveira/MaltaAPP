@@ -364,7 +364,6 @@
   .inbox-unread{width:8px;height:8px;border-radius:50%;background:var(--accent);flex-shrink:0}
   .inbox-item-prev{font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .inbox-item-meta{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
-  .chan-tag{font-size:10px;color:var(--muted);background:var(--surface-2);padding:2px 8px;border-radius:20px;white-space:nowrap}
   .inbox-status{font-size:10px;font-weight:600;padding:2px 8px;border-radius:20px;letter-spacing:.02em;white-space:nowrap}
   .inbox-status.aberto{background:rgba(229,105,138,.14);color:var(--danger)}
   .inbox-status.andamento{background:rgba(230,180,95,.14);color:var(--warn)}
@@ -947,18 +946,17 @@ function renderGoals(){
 }
 
 /* ============ SOCIAL INBOX ============
-   Registro manual das conversas de atendimento por cliente (Instagram, WhatsApp,
-   Facebook, e-mail...). Não puxa mensagens reais das redes — é um quadro de
-   controle/chatbox interno para acompanhar status e histórico, visível também
-   para o login do cliente (fica preso ao próprio cliente). */
-const INBOX_CHANNELS=['Instagram','WhatsApp','Facebook','Twitter/X','E-mail','Outro'];
+   Registro manual das conversas de atendimento por cliente. Não puxa mensagens
+   reais das redes — é um quadro de controle/chatbox interno para acompanhar
+   status e histórico, visível também para o login do cliente (fica preso ao
+   próprio cliente). O cliente só responde como "Contato" e não muda o status
+   — isso fica só com o admin. */
 const INBOX_STATUS={aberto:'Aberto',andamento:'Em andamento',resolvido:'Resolvido'};
 let selectedInboxId=null;
 function openInboxModal(){
   mBox.classList.remove('lg');
   mBox.innerHTML=`<h3>Nova conversa</h3>
     <div class="field"><label>Contato</label><input id="mInContact" placeholder="Nome do cliente/contato" onkeydown="if(event.key==='Enter')addInboxThread()"></div>
-    <div class="field"><label>Canal</label><select id="mInChannel">${INBOX_CHANNELS.map(c=>`<option>${c}</option>`).join('')}</select></div>
     <div class="field"><label>Primeira mensagem (opcional)</label><textarea id="mInMsg" rows="3" placeholder="O que o contato disse..."></textarea></div>
     <div class="modal-foot"><button class="btn ghost" onclick="closeModal()">Cancelar</button><button class="btn" onclick="addInboxThread()">Criar</button></div>`;
   mBg.classList.add('open');
@@ -966,12 +964,11 @@ function openInboxModal(){
 }
 function addInboxThread(){
   const contact=document.getElementById('mInContact').value.trim(); if(!contact)return;
-  const channel=document.getElementById('mInChannel').value;
   const msg=document.getElementById('mInMsg').value.trim();
-  const t={id:uid(),client:currentClientForNew(),contact,channel,status:'aberto',unread:false,
+  const t={id:uid(),client:currentClientForNew(),contact,status:'aberto',unread:false,
     messages: msg?[{id:uid(),side:'contato',author:myEmail,text:msg,at:Date.now()}]:[]};
   S.inbox=S.inbox||[]; S.inbox.unshift(t);
-  logAct(`abriu uma conversa com "${contact}" (${channel})`);
+  logAct(`abriu uma conversa com "${contact}"`);
   save(); closeModal(); selectedInboxId=t.id; renderInbox(); renderBadges();
 }
 function delInboxThread(id){
@@ -981,6 +978,7 @@ function delInboxThread(id){
   logAct(`excluiu a conversa com "${t.contact}"`); save(); renderInbox(); renderBadges();
 }
 function setInboxStatus(id,status){
+  if(myRole==='client')return;
   const t=(S.inbox||[]).find(x=>x.id===id); if(!t)return;
   t.status=status; logAct(`marcou a conversa com "${t.contact}" como ${INBOX_STATUS[status]}`); save(); renderInbox(); renderBadges();
 }
@@ -992,7 +990,8 @@ function selectInbox(id){
 }
 function sendInboxMsg(){
   const t=(S.inbox||[]).find(x=>x.id===selectedInboxId); if(!t)return;
-  const side=document.getElementById('inboxSide').value;
+  const sideEl=document.getElementById('inboxSide');
+  const side = myRole==='client' ? 'contato' : (sideEl?sideEl.value:'equipe');
   const i=document.getElementById('inboxMsgInput'); const text=i.value.trim(); if(!text)return;
   t.messages.push({id:uid(),side,author:myEmail,text,at:Date.now()});
   t.unread = side==='contato';
@@ -1016,7 +1015,6 @@ function renderInbox(){
         </div>
         <div class="inbox-item-prev">${last?esc(last.text):'Sem mensagens ainda'}</div>
         <div class="inbox-item-meta">
-          <span class="chan-tag">${esc(t.channel)}</span>
           <span class="inbox-status ${t.status}">${INBOX_STATUS[t.status]}</span>
           ${activeClientId()==='all'?clientTag(t.client):''}
         </div>
@@ -1026,13 +1024,14 @@ function renderInbox(){
   const threadEl=document.getElementById('inboxThread'); if(!threadEl) return;
   const t=all.find(x=>x.id===selectedInboxId);
   if(!t){ threadEl.innerHTML=`<div class="empty" style="border:none;background:none;margin:auto"><b>Nenhuma conversa selecionada</b>Escolha uma conversa à esquerda para ver o histórico.</div>`; return; }
+  const isAdmin=myRole!=='client';
   threadEl.innerHTML=`
     <div class="inbox-thread-head">
-      <div><div class="name">${esc(t.contact)}</div><span class="chan-tag">${esc(t.channel)}</span></div>
-      <select onchange="setInboxStatus('${t.id}',this.value)">
+      <div class="name">${esc(t.contact)}</div>
+      ${isAdmin?`<select onchange="setInboxStatus('${t.id}',this.value)">
         ${Object.entries(INBOX_STATUS).map(([k,l])=>`<option value="${k}" ${t.status===k?'selected':''}>${l}</option>`).join('')}
-      </select>
-      <button class="iconbtn del" onclick="delInboxThread('${t.id}')" title="Excluir conversa"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button>
+      </select>`:`<span class="inbox-status ${t.status}" style="margin-left:auto">${INBOX_STATUS[t.status]}</span>`}
+      ${isAdmin?`<button class="iconbtn del" onclick="delInboxThread('${t.id}')" title="Excluir conversa"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button>`:''}
     </div>
     <div class="inbox-msgs" id="inboxMsgs">
       ${t.messages.length? t.messages.map(m=>`
@@ -1040,7 +1039,7 @@ function renderInbox(){
         : '<div class="empty" style="border:none;background:none">Nenhuma mensagem ainda.</div>'}
     </div>
     <div class="inbox-compose">
-      <select id="inboxSide" title="Quem está falando"><option value="equipe">Equipe</option><option value="contato">Contato</option></select>
+      ${isAdmin?`<select id="inboxSide" title="Quem está falando"><option value="equipe">Equipe</option><option value="contato">Contato</option></select>`:''}
       <input id="inboxMsgInput" placeholder="Escrever mensagem..." onkeydown="if(event.key==='Enter')sendInboxMsg()">
       <button class="btn sm" onclick="sendInboxMsg()">Enviar</button>
     </div>`;
