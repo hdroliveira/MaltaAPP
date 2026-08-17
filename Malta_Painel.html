@@ -213,6 +213,24 @@
   /* ---------- Team assignments (admin only) ---------- */
   .team-chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:4px}
 
+  /* ---------- Financeiro (admin only) ---------- */
+  .fin-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:20px}
+  .fin-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:15px 16px;box-shadow:0 1px 2px rgba(0,0,0,.16)}
+  .fin-card .fl{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:7px}
+  .fin-card .fv{font-family:var(--display);font-size:21px;font-weight:700;font-variant-numeric:tabular-nums}
+  .fin-card.ok .fv{color:var(--ok)}
+  .fin-card.warn .fv{color:var(--warn)}
+  .fin-card.danger .fv{color:var(--danger)}
+  .fin-row{display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--surface);
+    border:1px solid var(--border);border-radius:var(--radius);margin-bottom:8px;flex-wrap:wrap;box-shadow:0 1px 2px rgba(0,0,0,.16)}
+  .fin-desc{flex:1;min-width:180px;font-size:13.5px}
+  .fin-desc .fd-amount{font-family:var(--display);font-weight:600;margin-right:8px;font-variant-numeric:tabular-nums}
+  .fin-due{font-size:11.5px;color:var(--muted);white-space:nowrap}
+  .fin-status{font-size:10.5px;font-weight:600;padding:2px 8px;border-radius:20px;white-space:nowrap}
+  .fin-status.pago{background:rgba(95,208,160,.12);color:var(--ok)}
+  .fin-status.pendente{background:rgba(230,180,95,.14);color:var(--warn)}
+  .fin-status.atrasado{background:rgba(229,105,138,.14);color:var(--danger)}
+
   /* ---------- Calendar ---------- */
   .cal-head{display:flex;align-items:center;gap:12px;margin-bottom:16px}
   .cal-head h3{font-family:var(--display);font-size:18px;font-weight:600;text-transform:capitalize;min-width:170px}
@@ -456,6 +474,10 @@
       <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m9 14 2 2 4-4"/></svg>
       Atribuições <span class="badge" id="b-assign">0</span>
     </button>
+    <button class="nav-item role-admin-only" data-view="finance">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+      Financeiro
+    </button>
     <div class="nav-label">Trabalho</div>
     <button class="nav-item active" data-view="tasks">
       <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
@@ -482,6 +504,10 @@
     <button class="nav-item" data-view="links">
       <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10 13a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7l1-1"/></svg>
       Links rápidos
+    </button>
+    <button class="nav-item" data-view="reports">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M16 13H8"/><path d="M16 17H8"/><path d="M10 9H8"/></svg>
+      Relatórios
     </button>
     <button class="nav-item role-admin-only" data-view="sheet">
       <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18M9 3v18M15 3v18"/></svg>
@@ -548,6 +574,19 @@
       <div id="assignList"></div>
     </section>
 
+    <!-- FINANCEIRO (admin only) -->
+    <section class="view" id="v-finance">
+      <div class="fin-summary" id="finSummary"></div>
+      <div class="row-add">
+        <input id="finDesc" placeholder="Descrição — ex.: Mensalidade agosto">
+        <select id="finClient"></select>
+        <input id="finAmount" type="number" step="0.01" min="0" placeholder="Valor (R$)">
+        <input id="finDue" type="date">
+        <button class="btn" onclick="addFinance()">Adicionar cobrança</button>
+      </div>
+      <div id="finList"></div>
+    </section>
+
     <!-- TASKS -->
     <section class="view active" id="v-tasks">
       <div class="row-add">
@@ -601,6 +640,16 @@
     <section class="view" id="v-links">
       <div class="row-add"><button class="btn" onclick="openLinkModal()">+ Novo link</button></div>
       <div class="grid" id="linkGrid"></div>
+    </section>
+
+    <!-- REPORTS (relatórios para o cliente) -->
+    <section class="view" id="v-reports">
+      <div class="row-add role-admin-only">
+        <input id="repNote" placeholder="Título do relatório — ex.: Relatório de agosto">
+        <button class="btn" onclick="triggerReportUpload()">+ Enviar relatório</button>
+        <input type="file" id="reportUploadInput" multiple style="display:none" onchange="handleReportUpload(event)">
+      </div>
+      <div class="grid-files" id="reportGrid"></div>
     </section>
 
     <!-- SHEET -->
@@ -694,7 +743,7 @@ if(firebaseEnabled){
 const PALETTE = ['#7c8cf8','#5fd0a0','#e6b45f','#e5698a','#6fc4e6','#c07ef0','#e6845f','#8bd05f'];
 const DEFAULT = {
   clients:[], tasks:[], appr:[], events:{}, goals:[], links:[], files:[], dayNotes:{},
-  sheets:{}, activityLog:[], inbox:[], team:[], assignments:[],
+  sheets:{}, activityLog:[], inbox:[], team:[], assignments:[], finance:[], reports:[],
   activeClient:'all', activeView:'tasks', pCount:0, pDate:'',
   calYear:new Date().getFullYear(), calMonth:new Date().getMonth()
 };
@@ -766,7 +815,7 @@ function resolveRole(){
 }
 function activeClientId(){ return myRole==='client' ? myClientId : S.activeClient; }
 function rolesClientList(){ return myRole==='client' ? S.clients.filter(c=>c.id===myClientId) : S.clients; }
-const RESTRICTED_VIEWS=['clients','assignments','sheet','files','focus','activity'];
+const RESTRICTED_VIEWS=['clients','assignments','finance','sheet','files','focus','activity'];
 function applyRoleUI(){
   document.body.classList.toggle('role-client', myRole==='client');
   if(myRole==='client' && RESTRICTED_VIEWS.includes(S.activeView)) showView('tasks');
@@ -814,12 +863,14 @@ function currentClientForNew(){ const ac=activeClientId(); return ac==='all' ? (
 const VIEWS={
   clients:['Clientes','Perfil completo de cada conta'],
   assignments:['Atribuições','Distribua tarefas da equipe por cliente'],
+  finance:['Financeiro','Cobranças, pagamentos e receita por cliente'],
   tasks:['Tarefas','O que precisa sair hoje'],
   approvals:['Aprovações','Status de cada post — arraste entre as colunas'],
   calendar:['Calendário','Planejamento e agendamentos'],
   goals:['Metas','Progresso das campanhas'],
   inbox:['Social Inbox','Gestão de conversas e atendimento unificado'],
   links:['Links rápidos','Seus atalhos de trabalho'],
+  reports:['Relatórios','Relatórios enviados pela equipe'],
   sheet:['Planilha','Uma planilha independente para cada cliente'],
   files:['Dados','Arquive fotos, PDFs e documentos por cliente'],
   focus:['Foco','Um ciclo de cada vez'],
@@ -946,6 +997,73 @@ function renderAssignments(){
         <span class="prio ${a.prio}">${plabel[a.prio]}</span>
         <button class="iconbtn del" onclick="delAssignment('${a.id}')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button>
       </div>
+    </div>`;
+  }).join('');
+}
+
+/* ============ FINANCEIRO (admin only) ============
+   Cobranças manuais por cliente — quanto, quando vence e se já foi pago.
+   O valor mensal do contrato fica no perfil do cliente (monthlyFee) e só
+   alimenta o resumo de receita recorrente aqui, não gera cobrança sozinho. */
+const finCurrency = new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL'});
+function todayStr(){ return new Date().toISOString().slice(0,10); }
+function finStatus(f){ if(f.status==='pago') return 'pago'; return (f.dueDate && f.dueDate<todayStr()) ? 'atrasado' : 'pendente'; }
+function fmtDateBR(v){ if(!v)return ''; const [y,m,d]=v.split('-'); return `${d}/${m}/${y}`; }
+function addFinance(){
+  const desc=document.getElementById('finDesc').value.trim(); if(!desc)return;
+  const client=document.getElementById('finClient').value; if(!client)return;
+  const amount=parseFloat(document.getElementById('finAmount').value)||0;
+  const dueDate=document.getElementById('finDue').value;
+  S.finance=S.finance||[];
+  S.finance.unshift({id:uid(),client,desc,amount,dueDate,status:'pendente',paidAt:null});
+  document.getElementById('finDesc').value=''; document.getElementById('finAmount').value=''; document.getElementById('finDue').value='';
+  logAct(`lançou a cobrança "${desc}" (${finCurrency.format(amount)})`);
+  save(); renderFinance();
+}
+function toggleFinancePaid(id){
+  const f=(S.finance||[]).find(x=>x.id===id); if(!f)return;
+  f.status = f.status==='pago' ? 'pendente' : 'pago';
+  f.paidAt = f.status==='pago' ? Date.now() : null;
+  logAct(`marcou "${f.desc}" como ${f.status==='pago'?'pago':'pendente'}`);
+  save(); renderFinance();
+}
+function delFinance(id){
+  const f=(S.finance||[]).find(x=>x.id===id); S.finance=(S.finance||[]).filter(x=>x.id!==id);
+  if(f) logAct(`excluiu a cobrança "${f.desc}"`); save(); renderFinance();
+}
+function renderFinance(){
+  const clientSel=document.getElementById('finClient');
+  if(clientSel) clientSel.innerHTML = S.clients.length
+    ? S.clients.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('')
+    : '<option value="">Cadastre um cliente primeiro</option>';
+
+  const list=(S.finance||[]).filter(f=>matchClient(f.client));
+  const ym=todayStr().slice(0,7);
+  const inMonth=x=>(x.dueDate||'').slice(0,7)===ym;
+  const received=list.filter(f=>f.status==='pago' && inMonth(f)).reduce((s,f)=>s+f.amount,0);
+  const pending=list.filter(f=>finStatus(f)==='pendente').reduce((s,f)=>s+f.amount,0);
+  const overdue=list.filter(f=>finStatus(f)==='atrasado').reduce((s,f)=>s+f.amount,0);
+  const mrr=S.clients.filter(c=>matchClient(c.id)).reduce((s,c)=>s+(+c.monthlyFee||0),0);
+  const sEl=document.getElementById('finSummary');
+  if(sEl) sEl.innerHTML=`
+    <div class="fin-card ok"><div class="fl">Recebido este mês</div><div class="fv">${finCurrency.format(received)}</div></div>
+    <div class="fin-card warn"><div class="fl">Pendente</div><div class="fv">${finCurrency.format(pending)}</div></div>
+    <div class="fin-card danger"><div class="fl">Em atraso</div><div class="fv">${finCurrency.format(overdue)}</div></div>
+    <div class="fin-card"><div class="fl">Receita mensal recorrente</div><div class="fv">${finCurrency.format(mrr)}</div></div>`;
+
+  const el=document.getElementById('finList'); if(!el)return;
+  if(!list.length){ el.innerHTML=empty('Nenhuma cobrança lançada','Adicione a primeira acima para organizar os pagamentos.'); return; }
+  const order={atrasado:0,pendente:1,pago:2};
+  list.sort((a,b)=>order[finStatus(a)]-order[finStatus(b)] || (a.dueDate||'').localeCompare(b.dueDate||''));
+  el.innerHTML=list.map(f=>{
+    const st=finStatus(f); const stLabel={pago:'Pago',pendente:'Pendente',atrasado:'Atrasado'}[st];
+    return `<div class="fin-row">
+      ${activeClientId()==='all'?clientTag(f.client):''}
+      <div class="fin-desc"><span class="fd-amount">${finCurrency.format(f.amount)}</span>${esc(f.desc)}</div>
+      <div class="fin-due">${f.dueDate?('Vence '+fmtDateBR(f.dueDate)):'Sem vencimento'}</div>
+      <span class="fin-status ${st}">${stLabel}</span>
+      <button class="btn ghost sm" onclick="toggleFinancePaid('${f.id}')">${f.status==='pago'?'Marcar pendente':'Marcar pago'}</button>
+      <button class="iconbtn del" onclick="delFinance('${f.id}')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button>
     </div>`;
   }).join('');
 }
@@ -1424,6 +1542,57 @@ function renderFiles(){
   }).join('');
 }
 
+/* ============ REPORTS (relatórios para o cliente) ============
+   Igual ao arquivo de Dados, mas essa aba fica visível para o login do
+   cliente (só leitura/download) — o admin é quem envia e apaga. */
+function triggerReportUpload(){ document.getElementById('reportUploadInput').click(); }
+async function handleReportUpload(e){
+  const files=[...e.target.files]; e.target.value='';
+  const cl=currentClientForNew();
+  const noteEl=document.getElementById('repNote'); const note=noteEl?noteEl.value.trim():'';
+  let failed=false;
+  for(const f of files){
+    const dataUrl = f.type.startsWith('image/') ? await compressImage(f,1600,.82) : await readAsDataURL(f);
+    const size = Math.round(dataUrl.length*.75);
+    const entry={id:uid(),name:f.name,note,type:f.type,size,data:dataUrl,client:cl,date:Date.now()};
+    S.reports=S.reports||[]; S.reports.unshift(entry);
+    try{ logAct(`enviou o relatório "${note||f.name}"`); save(); } catch(err){ S.reports.shift(); S.activityLog.shift(); failed=true; }
+  }
+  if(noteEl) noteEl.value='';
+  renderReports();
+  if(failed) alert('Alguns arquivos não couberam no armazenamento local do navegador (limite de poucos MB). Remova relatórios antigos ou envie arquivos menores.');
+}
+function delReport(id){
+  const f=(S.reports||[]).find(x=>x.id===id); if(!f)return;
+  if(!confirm(`Excluir o relatório "${f.note||f.name}"? Essa ação não pode ser desfeita.`))return;
+  S.reports=(S.reports||[]).filter(x=>x.id!==id); logAct(`excluiu o relatório "${f.note||f.name}"`); save(); renderReports();
+}
+function renderReports(){
+  const el=document.getElementById('reportGrid'); if(!el)return;
+  const isAdmin=myRole!=='client';
+  const list=(S.reports||[]).filter(f=>matchClient(f.client));
+  if(!list.length){
+    el.innerHTML = isAdmin
+      ? empty('Nenhum relatório enviado ainda','Envie o primeiro acima para o cliente acessar.')
+      : empty('Nenhum relatório disponível ainda','Assim que a equipe enviar um relatório, ele aparece aqui.');
+    return;
+  }
+  el.innerHTML=list.map(f=>{
+    const isImg=f.type.startsWith('image/');
+    const thumb=isImg?`<img class="file-thumb" src="${f.data}" alt="">`:`<div class="file-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg><span class="ext">${fileExt(f.name)}</span></div>`;
+    return `<div class="file-card">
+      <a class="file-open" href="${f.data}" download="${esc(f.name)}" target="_blank" rel="noopener">
+        ${thumb}
+        <div class="file-name" title="${esc(f.note||f.name)}">${esc(f.note||f.name)}</div>
+        <div class="file-meta">${humanSize(f.size)} · ${new Date(f.date).toLocaleDateString('pt-BR',{day:'2-digit',month:'short'})}</div>
+      </a>
+      <div class="file-foot">
+        ${activeClientId()==='all'?(clientTag(f.client)||'<span></span>'):'<span></span>'}
+        ${isAdmin?`<button class="iconbtn del" onclick="delReport('${f.id}')" title="Excluir">${XSVG}</button>`:''}
+      </div>
+    </div>`;
+  }).join('');
+}
 
 /* ============ POMODORO ============ */
 let pTotal=30*60, pLeft=30*60, pRun=false, pTick=null, pIsFocus=true;
@@ -1602,6 +1771,13 @@ function clientModalBody(c){
       <div class="field"><label>Endereço</label><input id="mCContactAddr" value="${esc(c?.contact?.address||'')}" placeholder="Cidade / endereço"></div>
     </div>
 
+    <div class="modal-sec">Financeiro</div>
+    <div class="field">
+      <label>Valor mensal do contrato (R$)</label>
+      <input id="mCMonthlyFee" type="number" step="0.01" min="0" placeholder="Ex.: 1500.00" value="${c?.monthlyFee||''}">
+      <div class="cred-hint">Usado só para o resumo na aba Financeiro (receita mensal recorrente) — não gera cobrança automática.</div>
+    </div>
+
     <div class="modal-sec">Acesso do cliente</div>
     <div class="field">
       <label>E-mail de login do cliente</label>
@@ -1635,7 +1811,8 @@ function collectClientFields(){
     },
     palette:[...pickPalette],
     credentials: pickCredentials.filter(x=>x.label||x.user||x.pass).map(x=>({id:x.id||uid(),label:x.label,user:x.user,pass:x.pass})),
-    loginEmail: document.getElementById('mCLoginEmail').value.trim()
+    loginEmail: document.getElementById('mCLoginEmail').value.trim(),
+    monthlyFee: parseFloat(document.getElementById('mCMonthlyFee').value)||0
   };
 }
 
@@ -1708,7 +1885,7 @@ function updateClient(id){
   const c=clientById(id); const f=collectClientFields();
   c.name=f.name||c.name; c.color=pickColor; c.photo=pickPhoto;
   c.description=f.description; c.objective=f.objective; c.contact=f.contact; c.palette=f.palette; c.credentials=f.credentials;
-  c.loginEmail=f.loginEmail;
+  c.loginEmail=f.loginEmail; c.monthlyFee=f.monthlyFee;
   logAct(`editou o cliente "${c.name}"`); save(); closeModal();
   resolveRole(); applyRoleUI(); renderAll();
 }
@@ -1797,8 +1974,8 @@ function renderBadges(){
   document.getElementById('b-assign').textContent=(S.assignments||[]).filter(a=>!a.done&&matchClient(a.client)).length;
 }
 function renderAll(){
-  renderClients(); renderAssignments(); renderTasks(); renderBoard(); renderCal(); renderGoals(); renderInbox();
-  renderLinks(); renderSheet(); renderFiles(); renderBadges(); renderActivity();
+  renderClients(); renderAssignments(); renderFinance(); renderTasks(); renderBoard(); renderCal(); renderGoals(); renderInbox();
+  renderLinks(); renderReports(); renderSheet(); renderFiles(); renderBadges(); renderActivity();
 }
 function renderActivity(){
   const el=document.getElementById('activityList'); if(!el) return;
