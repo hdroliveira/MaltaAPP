@@ -791,10 +791,15 @@ function startSync(){
     if(snap.metadata.hasPendingWrites){ hasSynced=true; return; } // eco da própria escrita local
     hasSynced=true;
     if(!snap.exists){
-      if(S.clients.length===0){
-        S.clients=[{id:uid(),name:'Cliente A',color:PALETTE[0]},{id:uid(),name:'Cliente B',color:PALETTE[1]}];
-      }
-      docRef.set({data:JSON.stringify(S)}).catch(e=>console.error('Erro ao criar documento:', e));
+      // documento sumiu no servidor (ex: reset) — adota o estado vazio em vez de
+      // recriar o doc com o que esta aba ainda tinha em memória, senão qualquer
+      // aba aberta "ressuscita" os dados apagados assim que o reset acontece.
+      applyingRemote = true;
+      S = {...DEFAULT};
+      localStorage.setItem('smcentral', JSON.stringify(S));
+      resolveRole(); applyRoleUI();
+      renderAll(); renderBadges(); paintTimer();
+      applyingRemote = false;
       return;
     }
     const docData = snap.data();
