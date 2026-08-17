@@ -183,12 +183,35 @@
   .col h3 .n{margin-left:auto;background:var(--surface-3);color:var(--muted);font-size:11px;padding:0 7px;border-radius:20px}
   .col h3 .sdot{width:8px;height:8px;border-radius:50%}
   .card{background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);
-    padding:10px 11px;margin-bottom:8px;cursor:grab}
+    padding:10px 11px;margin-bottom:8px;cursor:pointer}
   .card:active{cursor:grabbing}
   .card.drag{opacity:.4}
   .col.over{border-color:var(--accent-dim);background:var(--surface-2)}
+  .card-media{width:100%;height:88px;object-fit:cover;border-radius:6px;margin-bottom:8px;display:block;background:var(--surface-3)}
   .card-t{font-size:13px;font-weight:500;margin-bottom:7px;line-height:1.35}
+  .card-sched{font-size:10.5px;color:var(--muted);display:flex;align-items:center;gap:4px;margin-bottom:7px}
   .card-b{display:flex;align-items:center;justify-content:space-between;gap:8px}
+  .card-quick{display:flex;align-items:center;gap:2px;margin-left:auto}
+  .card-comments{font-size:10.5px;color:var(--muted-2);display:flex;align-items:center;gap:3px;padding:0 4px}
+  .card-quick button{width:23px;height:23px;border-radius:6px;display:grid;place-items:center;color:var(--muted-2);transition:.12s;flex-shrink:0}
+  .card-quick button:hover{background:var(--surface-3);color:var(--text)}
+  .card-quick button.appr:hover{color:var(--ok)}
+  .card-quick button.reqchg:hover{color:var(--warn)}
+
+  /* ---------- Approval post modal ---------- */
+  .appr-media-wrap{position:relative;border-radius:var(--radius-sm);overflow:hidden;background:var(--surface-2)}
+  .appr-media-wrap img{width:100%;max-height:240px;object-fit:cover;display:block}
+  .appr-media-empty{height:110px;display:flex;align-items:center;justify-content:center;color:var(--muted-2);
+    font-size:12.5px;border:1px dashed var(--border);border-radius:var(--radius-sm)}
+  .appr-media-actions{position:absolute;top:8px;right:8px;display:flex;gap:6px}
+  .appr-actions-row{display:flex;gap:10px;margin:18px 0}
+  .appr-actions-row .btn{flex:1;justify-content:center}
+  .appr-comments{display:flex;flex-direction:column;gap:8px;max-height:220px;overflow-y:auto;padding:2px}
+  .appr-comment-row{display:flex;gap:8px;margin-top:10px}
+  .appr-comment-row input{flex:1}
+
+  /* ---------- Team assignments (admin only) ---------- */
+  .team-chips{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:4px}
 
   /* ---------- Calendar ---------- */
   .cal-head{display:flex;align-items:center;gap:12px;margin-bottom:16px}
@@ -429,6 +452,10 @@
       <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
       Clientes
     </button>
+    <button class="nav-item role-admin-only" data-view="assignments">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m9 14 2 2 4-4"/></svg>
+      Atribuições <span class="badge" id="b-assign">0</span>
+    </button>
     <div class="nav-label">Trabalho</div>
     <button class="nav-item active" data-view="tasks">
       <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
@@ -500,6 +527,27 @@
       <div class="client-grid" id="clientGrid"></div>
     </section>
 
+    <!-- ASSIGNMENTS (admin only) -->
+    <section class="view" id="v-assignments">
+      <div class="modal-sec" style="margin-top:0;padding-top:0;border-top:none">Equipe</div>
+      <div class="row-add">
+        <input id="teamNameInput" placeholder="Nome do responsável" onkeydown="if(event.key==='Enter')addTeamMember()">
+        <input id="teamEmailInput" placeholder="E-mail (opcional)" onkeydown="if(event.key==='Enter')addTeamMember()">
+        <button class="btn ghost" onclick="addTeamMember()">+ Adicionar à equipe</button>
+      </div>
+      <div class="team-chips" id="teamChips"></div>
+
+      <div class="modal-sec">Nova atribuição</div>
+      <div class="row-add">
+        <input id="assignInput" placeholder="O que precisa ser feito — ex.: Criar arte do stories" onkeydown="if(event.key==='Enter')addAssignment()">
+        <select id="assignClient"></select>
+        <select id="assignTeam"></select>
+        <select id="assignPrio"><option value="media">Média</option><option value="alta">Alta</option><option value="baixa">Baixa</option></select>
+        <button class="btn" onclick="addAssignment()">Atribuir</button>
+      </div>
+      <div id="assignList"></div>
+    </section>
+
     <!-- TASKS -->
     <section class="view active" id="v-tasks">
       <div class="row-add">
@@ -512,7 +560,7 @@
 
     <!-- APPROVALS -->
     <section class="view" id="v-approvals">
-      <div class="row-add">
+      <div class="row-add role-admin-only">
         <input id="apprInput" placeholder="Novo post — ex.: Carrossel lançamento" onkeydown="if(event.key==='Enter')addAppr()">
         <button class="btn" onclick="addAppr()">Adicionar post</button>
       </div>
@@ -646,7 +694,7 @@ if(firebaseEnabled){
 const PALETTE = ['#7c8cf8','#5fd0a0','#e6b45f','#e5698a','#6fc4e6','#c07ef0','#e6845f','#8bd05f'];
 const DEFAULT = {
   clients:[], tasks:[], appr:[], events:{}, goals:[], links:[], files:[], dayNotes:{},
-  sheets:{}, activityLog:[], inbox:[],
+  sheets:{}, activityLog:[], inbox:[], team:[], assignments:[],
   activeClient:'all', activeView:'tasks', pCount:0, pDate:'',
   calYear:new Date().getFullYear(), calMonth:new Date().getMonth()
 };
@@ -718,7 +766,7 @@ function resolveRole(){
 }
 function activeClientId(){ return myRole==='client' ? myClientId : S.activeClient; }
 function rolesClientList(){ return myRole==='client' ? S.clients.filter(c=>c.id===myClientId) : S.clients; }
-const RESTRICTED_VIEWS=['clients','sheet','files','focus','activity'];
+const RESTRICTED_VIEWS=['clients','assignments','sheet','files','focus','activity'];
 function applyRoleUI(){
   document.body.classList.toggle('role-client', myRole==='client');
   if(myRole==='client' && RESTRICTED_VIEWS.includes(S.activeView)) showView('tasks');
@@ -765,6 +813,7 @@ function currentClientForNew(){ const ac=activeClientId(); return ac==='all' ? (
 /* ============ NAV / VIEWS ============ */
 const VIEWS={
   clients:['Clientes','Perfil completo de cada conta'],
+  assignments:['Atribuições','Distribua tarefas da equipe por cliente'],
   tasks:['Tarefas','O que precisa sair hoje'],
   approvals:['Aprovações','Status de cada post — arraste entre as colunas'],
   calendar:['Calendário','Planejamento e agendamentos'],
@@ -832,6 +881,75 @@ function renderClientGrid(){
 }
 function setClient(id){ S.activeClient=id; save(); renderAll(); }
 
+/* ============ TEAM & ASSIGNMENTS (admin only) ============
+   Um cadastro simples de integrantes da equipe e tarefas atribuídas a cada um,
+   por cliente. Fica de fora do que o cliente vê — é organização interna. */
+function addTeamMember(){
+  const n=document.getElementById('teamNameInput'); const name=n.value.trim(); if(!name)return;
+  const e=document.getElementById('teamEmailInput'); const email=e.value.trim();
+  S.team=S.team||[]; S.team.push({id:uid(),name,email});
+  n.value=''; e.value=''; logAct(`adicionou "${name}" à equipe`); save(); renderAssignments();
+}
+function delTeamMember(id){
+  const m=(S.team||[]).find(x=>x.id===id); if(!m)return;
+  if(!confirm(`Remover "${m.name}" da equipe? As tarefas já atribuídas a ele ficam sem responsável.`))return;
+  S.team=S.team.filter(x=>x.id!==id);
+  (S.assignments||[]).forEach(a=>{ if(a.assignee===id) a.assignee=null; });
+  logAct(`removeu "${m.name}" da equipe`); save(); renderAssignments();
+}
+function teamMemberById(id){ return (S.team||[]).find(m=>m.id===id); }
+function addAssignment(){
+  const i=document.getElementById('assignInput'); const t=i.value.trim(); if(!t)return;
+  const client=document.getElementById('assignClient').value; if(!client)return;
+  const assignee=document.getElementById('assignTeam').value||null;
+  const prio=document.getElementById('assignPrio').value;
+  S.assignments=S.assignments||[];
+  S.assignments.unshift({id:uid(),text:t,client,assignee,prio,done:false,at:Date.now()});
+  i.value=''; logAct(`atribuiu a tarefa "${t}"`); save(); renderAssignments(); renderBadges();
+}
+function toggleAssignment(id){
+  const a=(S.assignments||[]).find(x=>x.id===id); if(!a)return;
+  a.done=!a.done; logAct(`${a.done?'concluiu':'reabriu'} a atribuição "${a.text}"`); save(); renderAssignments(); renderBadges();
+}
+function delAssignment(id){
+  const a=(S.assignments||[]).find(x=>x.id===id); S.assignments=(S.assignments||[]).filter(x=>x.id!==id);
+  if(a) logAct(`excluiu a atribuição "${a.text}"`); save(); renderAssignments(); renderBadges();
+}
+function renderAssignments(){
+  const chipsEl=document.getElementById('teamChips'); if(!chipsEl)return;
+  const team=S.team||[];
+  chipsEl.innerHTML = team.length? team.map(m=>`
+    <span class="ctag">${esc(m.name)}${m.email?` · ${esc(m.email)}`:''}
+      <button class="iconbtn del" style="padding:1px;margin-left:2px" onclick="delTeamMember('${m.id}')"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+    </span>`).join('') : `<span class="pal-empty">Nenhum integrante ainda — adicione acima.</span>`;
+
+  const clientSel=document.getElementById('assignClient');
+  if(clientSel) clientSel.innerHTML = S.clients.length
+    ? S.clients.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('')
+    : '<option value="">Cadastre um cliente primeiro</option>';
+  const teamSel=document.getElementById('assignTeam');
+  if(teamSel) teamSel.innerHTML = `<option value="">Sem responsável</option>` + team.map(m=>`<option value="${m.id}">${esc(m.name)}</option>`).join('');
+
+  const list=(S.assignments||[]).filter(a=>matchClient(a.client));
+  const el=document.getElementById('assignList'); if(!el)return;
+  if(!list.length){ el.innerHTML=empty('Nenhuma atribuição ainda','Crie uma tarefa acima e escolha quem da equipe vai tocar.'); return; }
+  const order={alta:0,media:1,baixa:2}; const plabel={alta:'Alta',media:'Média',baixa:'Baixa'};
+  list.sort((a,b)=>(a.done-b.done)||(order[a.prio]-order[b.prio]));
+  el.innerHTML=list.map(a=>{
+    const m=teamMemberById(a.assignee);
+    return `<div class="task ${a.done?'done':''}">
+      <button class="check" onclick="toggleAssignment('${a.id}')"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"><path d="M20 6L9 17l-5-5"/></svg></button>
+      <div class="task-txt">${esc(a.text)}</div>
+      <div class="task-meta">
+        ${activeClientId()==='all'?clientTag(a.client):''}
+        <span class="ctag">${m?esc(m.name):'Sem responsável'}</span>
+        <span class="prio ${a.prio}">${plabel[a.prio]}</span>
+        <button class="iconbtn del" onclick="delAssignment('${a.id}')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
 /* ============ TASKS ============ */
 function addTask(){
   const i=document.getElementById('taskInput'); const t=i.value.trim(); if(!t)return;
@@ -862,13 +980,15 @@ function renderTasks(){
 const STAGES=[['rascunho','Rascunho','#8b90a1'],['revisao','Em revisão','#e6b45f'],['aprovado','Aprovado','#6fc4e6'],['publicado','Publicado','#5fd0a0']];
 function addAppr(){
   const i=document.getElementById('apprInput'); const t=i.value.trim(); if(!t)return;
-  S.appr.unshift({id:uid(),text:t,stage:'rascunho',client:currentClientForNew()});
+  S.appr.unshift({id:uid(),text:t,stage:'rascunho',client:currentClientForNew(),media:null,scheduledAt:'',comments:[]});
   i.value=''; logAct(`criou a aprovação "${t}"`); save(); renderBoard(); renderBadges();
 }
 function delAppr(id){ const a=S.appr.find(x=>x.id===id); S.appr=S.appr.filter(x=>x.id!==id); if(a) logAct(`excluiu a aprovação "${a.text}"`); save(); renderBoard(); renderBadges(); }
 function moveAppr(id,stage){ const c=S.appr.find(x=>x.id===id); if(c){ const label=(STAGES.find(s=>s[0]===stage)||[])[1]||stage; logAct(`moveu "${c.text}" para ${label}`); c.stage=stage; save(); renderBoard(); renderBadges();} }
+function fmtSchedDate(v){ if(!v)return ''; const d=new Date(v); return d.toLocaleDateString('pt-BR')+' '+d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}); }
 function renderBoard(){
   const el=document.getElementById('board');
+  const isAdmin=myRole!=='client';
   el.innerHTML=STAGES.map(([key,label,color])=>{
     const items=S.appr.filter(a=>a.stage===key && matchClient(a.client));
     return `<div class="col" data-stage="${key}"
@@ -876,21 +996,135 @@ function renderBoard(){
         ondragleave="this.classList.remove('over')"
         ondrop="dropCard(event,'${key}')">
       <h3><span class="sdot" style="background:${color}"></span>${label}<span class="n">${items.length}</span></h3>
-      ${items.map(a=>`
-        <div class="card" draggable="true" data-id="${a.id}"
-          ondragstart="dragCard(event,'${a.id}')" ondragend="this.classList.remove('drag')">
+      ${items.map(a=>{
+        const comments=a.comments||[];
+        return `
+        <div class="card" draggable="${isAdmin}" data-id="${a.id}"
+          ondragstart="dragCard(event,'${a.id}')" ondragend="this.classList.remove('drag')"
+          onclick="openApprPost('${a.id}')">
+          ${a.media?`<img class="card-media" src="${a.media}" alt="">`:''}
           <div class="card-t">${esc(a.text)}</div>
+          ${a.scheduledAt?`<div class="card-sched"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>${fmtSchedDate(a.scheduledAt)}</div>`:''}
           <div class="card-b">
             ${activeClientId()==='all'?clientTag(a.client):'<span></span>'}
-            <button class="iconbtn del" onclick="delAppr('${a.id}')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+            <div class="card-quick">
+              ${comments.length?`<span class="card-comments"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>${comments.length}</span>`:''}
+              ${key!=='publicado'?`
+                <button class="appr" onclick="event.stopPropagation();approveApprPost('${a.id}')" title="Aprovar"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M20 6L9 17l-5-5"/></svg></button>
+                <button class="reqchg" onclick="event.stopPropagation();requestApprChange('${a.id}')" title="Pedir ajuste"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 7v6h6"/><path d="M21 17a9 9 0 0 0-9-9 9 9 0 0 0-6 2.3L3 13"/></svg></button>`:''}
+              ${isAdmin?`<button class="iconbtn del" onclick="event.stopPropagation();delAppr('${a.id}')"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>`:''}
+            </div>
           </div>
-        </div>`).join('') || '<div style="font-size:11.5px;color:var(--muted-2);padding:6px 2px">Vazio</div>'}
+        </div>`;
+      }).join('') || '<div style="font-size:11.5px;color:var(--muted-2);padding:6px 2px">Vazio</div>'}
     </div>`;
   }).join('');
 }
 let dragId=null;
 function dragCard(e,id){ dragId=id; e.target.classList.add('drag'); }
-function dropCard(e,stage){ e.preventDefault(); document.querySelectorAll('.col').forEach(c=>c.classList.remove('over')); if(dragId) moveAppr(dragId,stage); dragId=null; }
+function dropCard(e,stage){ e.preventDefault(); document.querySelectorAll('.col').forEach(c=>c.classList.remove('over')); if(myRole!=='client' && dragId) moveAppr(dragId,stage); dragId=null; }
+
+/* ---- post detail modal: media, caption, schedule, status and comments ---- */
+function refreshApprModalIfOpen(id){ if(document.getElementById('apComments')) openApprPost(id); }
+function openApprPost(id){
+  const a=S.appr.find(x=>x.id===id); if(!a)return;
+  a.comments=a.comments||[];
+  const isAdmin=myRole!=='client';
+  mBox.classList.add('lg');
+  mBox.innerHTML=`
+    <h3>Detalhes do post</h3>
+    ${activeClientId()==='all'?`<div style="margin-bottom:14px">${clientTag(a.client)}</div>`:''}
+    <div class="field">
+      <label>Imagem</label>
+      <div class="appr-media-wrap">
+        ${a.media?`<img src="${a.media}" alt="">`:'<div class="appr-media-empty">Sem imagem anexada</div>'}
+        ${isAdmin?`<div class="appr-media-actions">
+          <button type="button" class="btn ghost sm" onclick="triggerApprMediaUpload()">Trocar</button>
+          ${a.media?`<button type="button" class="btn ghost sm" onclick="removeApprMedia('${id}')">Remover</button>`:''}
+        </div>`:''}
+      </div>
+      <input type="file" id="apMediaInput" accept="image/*" style="display:none" onchange="handleApprMediaUpload(event,'${id}')">
+    </div>
+    <div class="field">
+      <label>Legenda</label>
+      ${isAdmin?`<textarea id="apCaption" rows="3">${esc(a.text)}</textarea>`:`<div class="view-text">${esc(a.text)}</div>`}
+    </div>
+    <div class="field">
+      <label>Data agendada</label>
+      ${isAdmin?`<input type="datetime-local" id="apSched" value="${a.scheduledAt||''}">`
+        :`<div class="view-text">${a.scheduledAt?fmtSchedDate(a.scheduledAt):'Não agendado'}</div>`}
+    </div>
+    ${isAdmin?`
+    <div class="field">
+      <label>Status</label>
+      <select id="apStage" onchange="apStageChange('${id}',this.value)">
+        ${STAGES.map(([k,l])=>`<option value="${k}" ${a.stage===k?'selected':''}>${l}</option>`).join('')}
+      </select>
+    </div>`:`
+    <div class="appr-actions-row">
+      <button class="btn ghost" onclick="requestApprChange('${id}')">Pedir ajuste</button>
+      <button class="btn" onclick="approveApprPost('${id}')">Aprovar</button>
+    </div>`}
+    <div class="modal-sec">Comentários</div>
+    <div class="appr-comments" id="apComments">
+      ${a.comments.length? a.comments.map(c=>`
+        <div class="msg ${c.role==='client'?'in':'out'}">${esc(c.text)}<span class="msg-meta">${c.role==='client'?'Cliente':'Equipe'} · ${fmtMsgTime(c.at)}</span></div>`).join('')
+        : '<div class="empty" style="border:none;background:none;padding:14px 0">Nenhum comentário ainda.</div>'}
+    </div>
+    <div class="appr-comment-row">
+      <input id="apCommentInput" placeholder="Escrever um comentário..." onkeydown="if(event.key==='Enter')addApprComment('${id}')">
+      <button class="btn sm" onclick="addApprComment('${id}')">Enviar</button>
+    </div>
+    <div class="modal-foot">
+      <button class="btn ghost" onclick="closeModal()">Fechar</button>
+      ${isAdmin?`<button class="btn" onclick="saveApprPost('${id}')">Salvar</button>`:''}
+    </div>`;
+  mBg.classList.add('open');
+  const cEl=document.getElementById('apComments'); if(cEl) cEl.scrollTop=cEl.scrollHeight;
+}
+function captureApprEdits(id){
+  const a=S.appr.find(x=>x.id===id); if(!a)return;
+  const capEl=document.getElementById('apCaption'); const schedEl=document.getElementById('apSched');
+  if(capEl) a.text=capEl.value.trim()||a.text;
+  if(schedEl) a.scheduledAt=schedEl.value;
+}
+function apStageChange(id,stage){ captureApprEdits(id); moveAppr(id,stage); refreshApprModalIfOpen(id); }
+function saveApprPost(id){
+  captureApprEdits(id);
+  const a=S.appr.find(x=>x.id===id); if(!a)return;
+  logAct(`atualizou o post "${a.text}"`); save(); closeModal(); renderBoard();
+}
+function triggerApprMediaUpload(){ document.getElementById('apMediaInput').click(); }
+async function handleApprMediaUpload(e,id){
+  const f=e.target.files[0]; e.target.value=''; if(!f)return;
+  const a=S.appr.find(x=>x.id===id); if(!a)return;
+  captureApprEdits(id);
+  a.media=await compressImage(f,1200,.8);
+  logAct(`atualizou a imagem do post "${a.text}"`); save(); openApprPost(id); renderBoard();
+}
+function removeApprMedia(id){
+  const a=S.appr.find(x=>x.id===id); if(!a)return;
+  captureApprEdits(id);
+  a.media=null; save(); openApprPost(id); renderBoard();
+}
+function addApprComment(id){
+  const a=S.appr.find(x=>x.id===id); if(!a)return;
+  const i=document.getElementById('apCommentInput'); const t=i.value.trim(); if(!t)return;
+  captureApprEdits(id);
+  a.comments=a.comments||[];
+  a.comments.push({id:uid(),role:myRole==='client'?'client':'admin',author:myEmail,text:t,at:Date.now()});
+  logAct(`comentou no post "${a.text}"`);
+  save(); openApprPost(id); renderBoard();
+}
+function approveApprPost(id){ captureApprEdits(id); moveAppr(id,'aprovado'); refreshApprModalIfOpen(id); }
+function requestApprChange(id){
+  const note=prompt('O que precisa ajustar nesse post?'); if(note===null)return;
+  const t=note.trim();
+  const a=S.appr.find(x=>x.id===id); if(!a)return;
+  captureApprEdits(id);
+  if(t){ a.comments=a.comments||[]; a.comments.push({id:uid(),role:myRole==='client'?'client':'admin',author:myEmail,text:t,at:Date.now()}); }
+  moveAppr(id,'revisao'); refreshApprModalIfOpen(id);
+}
 
 /* ============ CALENDAR ============ */
 const MONTHS=['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
@@ -1560,9 +1794,10 @@ function renderBadges(){
   document.getElementById('b-appr').textContent=S.appr.filter(a=>a.stage!=='publicado'&&matchClient(a.client)).length;
   document.getElementById('b-goals').textContent=S.goals.filter(g=>matchClient(g.client)).length;
   document.getElementById('b-inbox').textContent=(S.inbox||[]).filter(t=>t.status!=='resolvido'&&matchClient(t.client)).length;
+  document.getElementById('b-assign').textContent=(S.assignments||[]).filter(a=>!a.done&&matchClient(a.client)).length;
 }
 function renderAll(){
-  renderClients(); renderTasks(); renderBoard(); renderCal(); renderGoals(); renderInbox();
+  renderClients(); renderAssignments(); renderTasks(); renderBoard(); renderCal(); renderGoals(); renderInbox();
   renderLinks(); renderSheet(); renderFiles(); renderBadges(); renderActivity();
 }
 function renderActivity(){
