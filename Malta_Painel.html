@@ -597,6 +597,11 @@
         <select id="assignPrio"><option value="media">Média</option><option value="alta">Alta</option><option value="baixa">Baixa</option></select>
         <button class="btn" onclick="addAssignment()">Atribuir</button>
       </div>
+      <div class="row-add" style="align-items:center">
+        <button class="pmode active" id="assignTabOpen" onclick="setAssignTab(false)">Em aberto</button>
+        <button class="pmode" id="assignTabDone" onclick="setAssignTab(true)">Concluídas</button>
+        <select id="assignFilterMember" onchange="S.assignFilterMember=this.value;renderAssignments()" style="margin-left:auto"></select>
+      </div>
       <div id="assignList"></div>
     </section>
 
@@ -792,12 +797,14 @@ const DEFAULT = {
   clients:[], tasks:[], appr:[], events:{}, goals:[], links:[], files:[], dayNotes:{},
   sheets:{}, activityLog:[], inbox:[], team:[], assignments:[], finance:[], reports:[],
   activeClient:'all', activeView:'tasks', pCount:0, pDate:'',
-  calYear:new Date().getFullYear(), calMonth:new Date().getMonth()
+  calYear:new Date().getFullYear(), calMonth:new Date().getMonth(),
+  assignShowDone:false, assignFilterMember:''
 };
 /* Campos de preferência local (aba aberta, cliente selecionado, mês do calendário,
-   contagem do pomodoro) não devem ser sincronizados: cada PC/aba tem os seus,
-   senão trocar de aba num PC troca a aba em todos os outros PCs logados. */
-const LOCAL_ONLY_KEYS=['activeView','activeClient','calYear','calMonth','pCount','pDate'];
+   contagem do pomodoro, filtros da tela de atribuições) não devem ser sincronizados:
+   cada PC/aba tem os seus, senão trocar de aba num PC troca a aba em todos os outros
+   PCs logados. */
+const LOCAL_ONLY_KEYS=['activeView','activeClient','calYear','calMonth','pCount','pDate','assignShowDone','assignFilterMember'];
 let S = load();
 /* migrate old single shared sheet (pre-client-split) into the "Geral" slot */
 if(S.sheet){ if(!S.sheets['all']) S.sheets['all']=S.sheet; delete S.sheet; save(); }
@@ -1015,6 +1022,12 @@ function delTeamMember(id){
   logAct(`removeu "${m.name}" da equipe`); save(); renderAssignments();
 }
 function teamMemberById(id){ return (S.team||[]).find(m=>m.id===id); }
+function setAssignTab(showDone){
+  S.assignShowDone=showDone;
+  document.getElementById('assignTabOpen').classList.toggle('active',!showDone);
+  document.getElementById('assignTabDone').classList.toggle('active',showDone);
+  renderAssignments();
+}
 function addAssignment(){
   const i=document.getElementById('assignInput'); const t=i.value.trim(); if(!t)return;
   const client=document.getElementById('assignClient').value; if(!client)return;
@@ -1047,11 +1060,21 @@ function renderAssignments(){
   const teamSel=document.getElementById('assignTeam');
   if(teamSel) teamSel.innerHTML = `<option value="">Sem responsável</option>` + team.map(m=>`<option value="${m.id}">${esc(m.name)}</option>`).join('');
 
-  const list=(S.assignments||[]).filter(a=>matchClient(a.client));
+  const filterSel=document.getElementById('assignFilterMember');
+  if(filterSel){
+    filterSel.innerHTML = `<option value="">Todos os responsáveis</option><option value="unassigned">Sem responsável</option>` + team.map(m=>`<option value="${m.id}">${esc(m.name)}</option>`).join('');
+    filterSel.value = S.assignFilterMember||'';
+  }
+  document.getElementById('assignTabOpen').classList.toggle('active',!S.assignShowDone);
+  document.getElementById('assignTabDone').classList.toggle('active',!!S.assignShowDone);
+
+  const showDone=!!S.assignShowDone, filterMember=S.assignFilterMember||'';
+  const list=(S.assignments||[]).filter(a=>matchClient(a.client) && !!a.done===showDone &&
+    (!filterMember || (filterMember==='unassigned'?!a.assignee:a.assignee===filterMember)));
   const el=document.getElementById('assignList'); if(!el)return;
-  if(!list.length){ el.innerHTML=empty('Nenhuma atribuição ainda','Crie uma tarefa acima e escolha quem da equipe vai tocar.'); return; }
+  if(!list.length){ el.innerHTML=empty(showDone?'Nenhuma atribuição concluída ainda':'Nenhuma atribuição em aberto', showDone?'As tarefas concluídas aparecem aqui.':'Crie uma tarefa acima e escolha quem da equipe vai tocar.'); return; }
   const order={alta:0,media:1,baixa:2}; const plabel={alta:'Alta',media:'Média',baixa:'Baixa'};
-  list.sort((a,b)=>(a.done-b.done)||(order[a.prio]-order[b.prio]));
+  list.sort((a,b)=>order[a.prio]-order[b.prio]);
   el.innerHTML=list.map(a=>{
     const m=teamMemberById(a.assignee);
     return `<div class="task ${a.done?'done':''}">
