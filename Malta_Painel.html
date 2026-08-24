@@ -86,11 +86,35 @@
   .sync-badge.error{color:#e5698a;border-color:#e5698a;cursor:pointer}
   .sync-badge.error .dot{background:#e5698a}
   @keyframes sync-pulse{0%,100%{opacity:1}50%{opacity:.35}}
-  .notif-btn[hidden]{display:none}
-  .notif-btn{position:relative;display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--muted);
-    padding:5px 11px;border-radius:20px;background:var(--surface-2);border:1px solid var(--border);white-space:nowrap}
+  .notif-wrap[hidden]{display:none}
+  .notif-wrap{position:relative}
+  .notif-btn{position:relative;display:grid;place-items:center;width:34px;height:34px;color:var(--muted);
+    border-radius:50%;background:var(--surface-2);border:1px solid var(--border)}
   .notif-btn:hover{color:var(--text);border-color:var(--accent-dim)}
-  .notif-btn.on{color:var(--ok)}
+  .notif-count{position:absolute;top:-4px;right:-4px;min-width:16px;height:16px;padding:0 4px;border-radius:20px;
+    background:var(--danger);color:#fff;font-size:10px;font-weight:700;display:grid;place-items:center;line-height:1}
+  .notif-count[hidden]{display:none}
+  .notif-panel[hidden]{display:none}
+  .notif-panel{position:absolute;top:calc(100% + 8px);right:0;width:min(340px,calc(100vw - 40px));z-index:300;
+    background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius);
+    box-shadow:0 14px 34px rgba(0,0,0,.4);overflow:hidden}
+  .notif-panel-head{display:flex;align-items:center;justify-content:space-between;gap:8px;
+    padding:11px 13px;border-bottom:1px solid var(--border-soft);font-size:13px;font-weight:600}
+  .notif-panel-head button{font-size:11px;font-weight:500;color:var(--accent)}
+  .notif-panel-head button:hover{color:var(--text)}
+  .notif-panel-list{max-height:340px;overflow-y:auto}
+  .notif-item{display:block;width:100%;text-align:left;padding:10px 13px;border-bottom:1px solid var(--border-soft);
+    cursor:pointer;position:relative}
+  .notif-item:last-child{border-bottom:none}
+  .notif-item:hover{background:var(--surface-3)}
+  .notif-item.unread{background:var(--accent-ghost)}
+  .notif-item .n-dot{position:absolute;left:4px;top:16px;width:6px;height:6px;border-radius:50%;background:var(--accent)}
+  .notif-item .n-title{font-size:12.5px;font-weight:600;padding-left:10px}
+  .notif-item .n-body{font-size:12.5px;color:var(--muted);margin-top:2px;padding-left:10px}
+  .notif-item .n-meta{font-size:10.5px;color:var(--muted-2);margin-top:4px;padding-left:10px}
+  .notif-panel-foot{padding:9px 13px;border-top:1px solid var(--border-soft);font-size:11.5px;color:var(--muted)}
+  .notif-panel-foot button{color:var(--accent);font-weight:600}
+  .notif-panel-foot button:hover{color:var(--text)}
   .notif-toast-wrap{position:fixed;bottom:20px;right:20px;z-index:400;display:flex;flex-direction:column;gap:10px;
     width:min(320px,calc(100vw - 40px))}
   .notif-toast{background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius);
@@ -580,10 +604,20 @@
         <div class="section-title" id="viewTitle">Tarefas</div>
         <div class="section-sub" id="viewSub">O que precisa sair hoje</div>
       </div>
-      <button class="notif-btn" id="notifBtn" onclick="requestNotifPermission()" hidden>
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-        <span id="notifBtnText">Ativar notificações</span>
-      </button>
+      <div class="notif-wrap" id="notifWrap" hidden>
+        <button class="notif-btn" id="notifBtn" onclick="toggleNotifPanel()" title="Notificações">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+          <span class="notif-count" id="notifCount" hidden>0</span>
+        </button>
+        <div class="notif-panel" id="notifPanel" hidden>
+          <div class="notif-panel-head">
+            <span>Notificações</span>
+            <button onclick="markAllNotifsRead()">Marcar todas como lidas</button>
+          </div>
+          <div class="notif-panel-list" id="notifPanelList"></div>
+          <div class="notif-panel-foot" id="notifPermRow" hidden></div>
+        </div>
+      </div>
       <div class="sync-badge" id="syncBadge" title="Sincronizado com o servidor" onclick="showSyncDetail()"><span class="dot"></span><span id="syncBadgeText">Sincronizado</span></div>
       <div class="clock"><b id="clkDate">—</b><span id="clkTime">—</span></div>
     </div>
@@ -602,19 +636,11 @@
       <div class="modal-sec" style="margin-top:0;padding-top:0;border-top:none">Equipe</div>
       <div class="row-add">
         <input id="teamNameInput" placeholder="Nome do responsável" onkeydown="if(event.key==='Enter')addTeamMember()">
-        <input id="teamEmailInput" placeholder="E-mail (opcional)" onkeydown="if(event.key==='Enter')addTeamMember()">
+        <input id="teamEmailInput" placeholder="E-mail de login (opcional)" onkeydown="if(event.key==='Enter')addTeamMember()">
         <button class="btn ghost" onclick="addTeamMember()">+ Adicionar à equipe</button>
       </div>
+      <div class="pal-empty" style="margin:2px 0 8px">O e-mail é opcional — só é necessário se essa pessoa também faz login no painel (com esse mesmo e-mail criado em Authentication &gt; Users). É o que ativa as notificações quando ela é atribuída a algo.</div>
       <div class="team-chips" id="teamChips"></div>
-
-      <div class="modal-sec">Admins</div>
-      <div class="row-add">
-        <input id="adminNameInput" placeholder="Nome do admin" onkeydown="if(event.key==='Enter')addAdmin()">
-        <input id="adminEmailInput" placeholder="E-mail de login (Firebase Auth)" onkeydown="if(event.key==='Enter')addAdmin()">
-        <button class="btn ghost" onclick="addAdmin()">+ Adicionar admin</button>
-      </div>
-      <div class="pal-empty" style="margin:2px 0 8px">Cadastre aqui o e-mail com que cada admin faz login no painel — é o que permite atribuir tarefas a ele e ele receber a notificação.</div>
-      <div class="team-chips" id="adminChips"></div>
 
       <div class="modal-sec">Nova atribuição</div>
       <div class="row-add">
@@ -823,7 +849,7 @@ if(firebaseEnabled){
 const PALETTE = ['#7c8cf8','#5fd0a0','#e6b45f','#e5698a','#6fc4e6','#c07ef0','#e6845f','#8bd05f'];
 const DEFAULT = {
   clients:[], tasks:[], appr:[], events:{}, goals:[], links:[], files:[], dayNotes:{},
-  sheets:{}, activityLog:[], inbox:[], team:[], admins:[], assignments:[], finance:[], reports:[],
+  sheets:{}, activityLog:[], inbox:[], team:[], assignments:[], notifications:[], finance:[], reports:[],
   activeClient:'all', activeView:'tasks', pCount:0, pDate:'',
   calYear:new Date().getFullYear(), calMonth:new Date().getMonth(),
   assignShowDone:false, assignFilterMember:''
@@ -836,7 +862,15 @@ const LOCAL_ONLY_KEYS=['activeView','activeClient','calYear','calMonth','pCount'
 let S = load();
 /* migrate old single shared sheet (pre-client-split) into the "Geral" slot */
 if(S.sheet){ if(!S.sheets['all']) S.sheets['all']=S.sheet; delete S.sheet; save(); }
+/* migrate the old separate "Admins" list back into Equipe — mesma lista faz tudo agora */
+if(migrateAdminsIntoTeam(S)) save();
 
+function migrateAdminsIntoTeam(obj){
+  if(!obj.admins || !obj.admins.length){ delete obj.admins; return false; }
+  obj.team = (obj.team||[]).concat(obj.admins);
+  delete obj.admins;
+  return true;
+}
 function load(){
   try{ const r = JSON.parse(localStorage.getItem('smcentral')); return r?{...DEFAULT,...r}:{...DEFAULT}; }
   catch(e){ return {...DEFAULT}; }
@@ -894,14 +928,15 @@ function startSync(){
     let remote;
     try{ remote = {...DEFAULT, ...JSON.parse(docData.data)}; }
     catch(e){ console.error('Documento remoto inválido:', e); return; }
+    migrateAdminsIntoTeam(remote);
     LOCAL_ONLY_KEYS.forEach(k=>remote[k]=S[k]);
     if(JSON.stringify(remote)===JSON.stringify(S)) return;
-    const oldAssignments = S.assignments||[];
+    const oldNotifications = S.notifications||[];
     applyingRemote = true;
     S = remote;
     localStorage.setItem('smcentral', JSON.stringify(S));
     resolveRole(); applyRoleUI();
-    checkAssignmentNotifications(oldAssignments);
+    checkNewNotifications(oldNotifications);
     renderAll(); renderBadges(); paintTimer();
     applyingRemote = false;
   }, e=>{ console.error('Erro ao sincronizar:', e); setSyncBadge('error', e.message); });
@@ -918,8 +953,7 @@ function resolveRole(){
   const c=S.clients.find(cl=>(cl.loginEmail||'').trim().toLowerCase()===myEmail.toLowerCase());
   if(c){ myRole='client'; myClientId=c.id; }
   const t=(S.team||[]).find(tm=>(tm.email||'').trim().toLowerCase()===myEmail.toLowerCase());
-  const ad=(S.admins||[]).find(am=>(am.email||'').trim().toLowerCase()===myEmail.toLowerCase());
-  if(t) myAssigneeId=t.id; else if(ad) myAssigneeId=ad.id;
+  if(t) myAssigneeId=t.id;
 }
 function activeClientId(){ return myRole==='client' ? myClientId : S.activeClient; }
 function rolesClientList(){ return myRole==='client' ? S.clients.filter(c=>c.id===myClientId) : S.clients; }
@@ -927,7 +961,7 @@ const RESTRICTED_VIEWS=['clients','assignments','finance','sheet','files','focus
 function applyRoleUI(){
   document.body.classList.toggle('role-client', myRole==='client');
   if(myRole==='client' && RESTRICTED_VIEWS.includes(S.activeView)) showView('tasks');
-  updateNotifBtn();
+  renderNotifPanel();
 }
 
 function initAuth(){
@@ -1057,22 +1091,7 @@ function delTeamMember(id){
   (S.assignments||[]).forEach(a=>{ if(a.assignee===id) a.assignee=null; });
   logAct(`removeu "${m.name}" da equipe`); save(); renderAssignments();
 }
-function addAdmin(){
-  const n=document.getElementById('adminNameInput'); const name=n.value.trim(); if(!name)return;
-  const e=document.getElementById('adminEmailInput'); const email=e.value.trim(); if(!email)return;
-  S.admins=S.admins||[]; S.admins.push({id:uid(),name,email});
-  n.value=''; e.value=''; logAct(`adicionou "${name}" como admin`); save(); renderAssignments();
-}
-function delAdmin(id){
-  const m=(S.admins||[]).find(x=>x.id===id); if(!m)return;
-  if(!confirm(`Remover "${m.name}" dos admins? As tarefas já atribuídas a ele ficam sem responsável.`))return;
-  S.admins=S.admins.filter(x=>x.id!==id);
-  (S.assignments||[]).forEach(a=>{ if(a.assignee===id) a.assignee=null; });
-  logAct(`removeu "${m.name}" dos admins`); save(); renderAssignments();
-}
 function teamMemberById(id){ return (S.team||[]).find(m=>m.id===id); }
-function adminById(id){ return (S.admins||[]).find(m=>m.id===id); }
-function assigneeById(id){ return teamMemberById(id)||adminById(id); }
 function setAssignTab(showDone){
   S.assignShowDone=showDone;
   document.getElementById('assignTabOpen').classList.toggle('active',!showDone);
@@ -1085,7 +1104,9 @@ function addAssignment(){
   const assignee=document.getElementById('assignTeam').value||null;
   const prio=document.getElementById('assignPrio').value;
   S.assignments=S.assignments||[];
-  S.assignments.unshift({id:uid(),text:t,client,assignee,prio,done:false,at:Date.now(),comments:[]});
+  const id=uid();
+  S.assignments.unshift({id,text:t,client,assignee,prio,done:false,at:Date.now(),comments:[]});
+  if(assignee && assignee!==myAssigneeId) pushAssignNotification(assignee,id,t,client);
   i.value=''; logAct(`atribuiu a tarefa "${t}"`); save(); renderAssignments(); renderBadges();
 }
 function toggleAssignment(id){
@@ -1098,32 +1119,22 @@ function delAssignment(id){
 }
 function renderAssignments(){
   const chipsEl=document.getElementById('teamChips'); if(!chipsEl)return;
-  const team=S.team||[], admins=S.admins||[];
+  const team=S.team||[];
   chipsEl.innerHTML = team.length? team.map(m=>`
     <span class="ctag">${esc(m.name)}${m.email?` · ${esc(m.email)}`:''}
       <button class="iconbtn del" style="padding:1px;margin-left:2px" onclick="delTeamMember('${m.id}')"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
     </span>`).join('') : `<span class="pal-empty">Nenhum integrante ainda — adicione acima.</span>`;
-
-  const adminChipsEl=document.getElementById('adminChips');
-  if(adminChipsEl) adminChipsEl.innerHTML = admins.length? admins.map(m=>`
-    <span class="ctag">${esc(m.name)} · ${esc(m.email)}
-      <button class="iconbtn del" style="padding:1px;margin-left:2px" onclick="delAdmin('${m.id}')"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
-    </span>`).join('') : `<span class="pal-empty">Nenhum admin cadastrado ainda — adicione acima.</span>`;
 
   const clientSel=document.getElementById('assignClient');
   if(clientSel) clientSel.innerHTML = S.clients.length
     ? S.clients.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('')
     : '<option value="">Cadastre um cliente primeiro</option>';
   const teamSel=document.getElementById('assignTeam');
-  if(teamSel) teamSel.innerHTML = `<option value="">Sem responsável</option>`
-    + (team.length?`<optgroup label="Equipe">${team.map(m=>`<option value="${m.id}">${esc(m.name)}</option>`).join('')}</optgroup>`:'')
-    + (admins.length?`<optgroup label="Admins">${admins.map(m=>`<option value="${m.id}">${esc(m.name)}</option>`).join('')}</optgroup>`:'');
+  if(teamSel) teamSel.innerHTML = `<option value="">Sem responsável</option>` + team.map(m=>`<option value="${m.id}">${esc(m.name)}</option>`).join('');
 
   const filterSel=document.getElementById('assignFilterMember');
   if(filterSel){
-    filterSel.innerHTML = `<option value="">Todos os responsáveis</option><option value="unassigned">Sem responsável</option>`
-      + (team.length?`<optgroup label="Equipe">${team.map(m=>`<option value="${m.id}">${esc(m.name)}</option>`).join('')}</optgroup>`:'')
-      + (admins.length?`<optgroup label="Admins">${admins.map(m=>`<option value="${m.id}">${esc(m.name)}</option>`).join('')}</optgroup>`:'');
+    filterSel.innerHTML = `<option value="">Todos os responsáveis</option><option value="unassigned">Sem responsável</option>` + team.map(m=>`<option value="${m.id}">${esc(m.name)}</option>`).join('');
     filterSel.value = S.assignFilterMember||'';
   }
   document.getElementById('assignTabOpen').classList.toggle('active',!S.assignShowDone);
@@ -1137,7 +1148,7 @@ function renderAssignments(){
   const order={alta:0,media:1,baixa:2}; const plabel={alta:'Alta',media:'Média',baixa:'Baixa'};
   list.sort((a,b)=>order[a.prio]-order[b.prio]);
   el.innerHTML=list.map(a=>{
-    const m=assigneeById(a.assignee);
+    const m=teamMemberById(a.assignee);
     const comments=a.comments||[];
     return `<div class="task ${a.done?'done':''}">
       <button class="check" onclick="toggleAssignment('${a.id}')"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"><path d="M20 6L9 17l-5-5"/></svg></button>
@@ -1184,67 +1195,122 @@ function addAssignComment(id){
 }
 
 /* ============ NOTIFICAÇÕES DE ATRIBUIÇÃO ============
-   Cada pessoa (equipe ou admin) loga com seu próprio email (ver
-   resolveRole/myAssigneeId, que casa o email logado com S.team ou S.admins).
-   Quando essa aba recebe, via Firestore, uma atribuição nova (ou reatribuída)
-   com assignee === myAssigneeId, mostramos um toast e — se autorizado — uma
-   notificação do navegador. Só funciona com a aba aberta (sem push real,
-   que exigiria Service Worker + Cloud Function). Na primeira sincronização
-   da sessão não notificamos nada (evita reavisar tudo que já existia) —
-   a comparação é sempre contra o estado imediatamente anterior desta
-   sessão, então recarregar a página nunca reabre avisos antigos. */
+   Cada pessoa da equipe loga com seu próprio email (ver resolveRole/myAssigneeId,
+   que casa o email logado com S.team). Toda atribuição criada com um responsável
+   gera um registro em S.notifications (fica escrito, com histórico, sincronizado
+   como o resto dos dados). Quando essa aba recebe via Firestore uma notificação
+   nova pra myAssigneeId, mostramos um toast e — se autorizado — uma notificação
+   do navegador; o sino no topo sempre mostra o histórico completo, lido ou não.
+   Isso só acontece com a aba aberta (sem push real, que exigiria Service Worker
+   + Cloud Function). Na primeira sincronização da sessão não disparamos toast/
+   notificação do navegador pro que já existia — só a partir daí, comparando
+   contra o estado imediatamente anterior desta sessão. */
+function myDisplayName(){
+  const t=(S.team||[]).find(tm=>(tm.email||'').trim().toLowerCase()===myEmail.toLowerCase());
+  return t ? t.name : (myEmail||'Alguém');
+}
+function pushAssignNotification(to, assignId, text, client){
+  S.notifications=S.notifications||[];
+  S.notifications.unshift({id:uid(), to, from:myDisplayName(), text, client, assignId, at:Date.now(), read:false});
+  if(S.notifications.length>300) S.notifications.length=300;
+}
 let firstSnapshotSeen=false;
 function markSnapshotSeen(){ firstSnapshotSeen=true; }
-function checkAssignmentNotifications(oldAssignments){
+function checkNewNotifications(oldNotifications){
   if(!firstSnapshotSeen){ markSnapshotSeen(); return; }
   if(!myAssigneeId) return;
-  const oldById=new Map((oldAssignments||[]).map(a=>[a.id,a]));
-  (S.assignments||[]).forEach(a=>{
-    if(a.assignee!==myAssigneeId || a.done) return;
-    const old=oldById.get(a.id);
-    const wasMineBefore = old && old.assignee===myAssigneeId;
-    if(!wasMineBefore) notifyNewAssignment(a);
-  });
+  const oldIds=new Set((oldNotifications||[]).map(n=>n.id));
+  (S.notifications||[]).forEach(n=>{ if(n.to===myAssigneeId && !oldIds.has(n.id)) notifyIncoming(n); });
 }
-function notifyNewAssignment(a){
-  const client=S.clients.find(c=>c.id===a.client);
-  const title='Nova atribuição para você';
-  const body=a.text+(client?' — '+client.name:'');
-  showAssignToast(title, body, a.id);
+function notifyIncoming(n){
+  const client=S.clients.find(c=>c.id===n.client);
+  const title=`${n.from} atribuiu uma tarefa para você`;
+  const body=n.text+(client?' — '+client.name:'');
+  showAssignToast(title, body, n.id);
   if(window.Notification && Notification.permission==='granted'){
     try{
-      const n=new Notification(title,{body,icon:'img/logo.png'});
-      n.onclick=()=>{ window.focus(); openAssignFromNotif(a.id); n.close(); };
+      const brow=new Notification(title,{body,icon:'img/logo.png'});
+      brow.onclick=()=>{ window.focus(); openNotif(n.id); brow.close(); };
     }catch(e){}
   }
+  renderNotifPanel();
 }
-function openAssignFromNotif(id){
-  const a=(S.assignments||[]).find(x=>x.id===id); if(!a)return;
-  S.assignFilterMember=a.assignee; S.assignShowDone=false;
-  switchView('assignments'); renderAssignments();
-}
-function showAssignToast(title, body, assignId){
+function showAssignToast(title, body, notifId){
   const wrap=document.getElementById('notifToastWrap'); if(!wrap)return;
   const el=document.createElement('div');
   el.className='notif-toast';
   el.innerHTML=`<div class="t-title"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>${esc(title)}</div><div class="t-body">${esc(body)}</div><div class="t-meta">Clique para ver</div>`;
-  el.onclick=()=>{ openAssignFromNotif(assignId); el.remove(); };
+  el.onclick=()=>{ openNotif(notifId); el.remove(); };
   wrap.appendChild(el);
   setTimeout(()=>el.remove(), 8000);
 }
-function updateNotifBtn(){
-  const btn=document.getElementById('notifBtn'), txt=document.getElementById('notifBtnText'); if(!btn||!txt)return;
-  if(!myAssigneeId || !window.Notification){ btn.hidden=true; return; }
-  btn.hidden=false;
-  const p=Notification.permission;
-  btn.classList.toggle('on', p==='granted');
-  txt.textContent = p==='granted' ? 'Notificações ativadas' : 'Ativar notificações';
-  btn.title = p==='denied' ? 'Notificações bloqueadas no navegador — ative nas permissões do site.' : 'Avisa aqui quando uma atribuição for atribuída a você (com a aba aberta).';
+function openNotif(id){
+  const n=(S.notifications||[]).find(x=>x.id===id); if(!n)return;
+  if(!n.read){ n.read=true; save(); }
+  closeNotifPanel();
+  S.assignFilterMember=n.to; S.assignShowDone=false;
+  switchView('assignments'); renderAssignments();
+  renderNotifPanel();
+}
+function markAllNotifsRead(){
+  let changed=false;
+  (S.notifications||[]).forEach(n=>{ if(n.to===myAssigneeId && !n.read){ n.read=true; changed=true; } });
+  if(changed){ save(); renderNotifPanel(); }
+}
+function onDocClickCloseNotif(e){
+  const wrap=document.getElementById('notifWrap');
+  if(wrap && !wrap.contains(e.target)) closeNotifPanel();
+}
+function toggleNotifPanel(){
+  const panel=document.getElementById('notifPanel'); if(!panel)return;
+  if(panel.hidden) openNotifPanel(); else closeNotifPanel();
+}
+function openNotifPanel(){
+  const panel=document.getElementById('notifPanel'); if(!panel)return;
+  renderNotifPanel();
+  panel.hidden=false;
+  document.addEventListener('click', onDocClickCloseNotif, {capture:true});
+}
+function closeNotifPanel(){
+  const panel=document.getElementById('notifPanel'); if(!panel)return;
+  panel.hidden=true;
+  document.removeEventListener('click', onDocClickCloseNotif, {capture:true});
+}
+function renderNotifPanel(){
+  const wrap=document.getElementById('notifWrap'); if(!wrap)return;
+  if(!myAssigneeId){ wrap.hidden=true; closeNotifPanel(); return; }
+  wrap.hidden=false;
+  const mine=(S.notifications||[]).filter(n=>n.to===myAssigneeId).sort((a,b)=>b.at-a.at);
+  const unread=mine.filter(n=>!n.read).length;
+  const countEl=document.getElementById('notifCount');
+  if(countEl){ countEl.hidden = unread===0; countEl.textContent = unread>99?'99+':unread; }
+
+  const listEl=document.getElementById('notifPanelList');
+  if(listEl) listEl.innerHTML = mine.length ? mine.slice(0,50).map(n=>{
+    const client=S.clients.find(c=>c.id===n.client);
+    return `<button class="notif-item ${n.read?'':'unread'}" onclick="openNotif('${n.id}')">
+      ${n.read?'':'<span class="n-dot"></span>'}
+      <div class="n-title">${esc(n.from)} atribuiu uma tarefa para você</div>
+      <div class="n-body">${esc(n.text)}${client?' — '+esc(client.name):''}</div>
+      <div class="n-meta">${fmtMsgTime(n.at)}</div>
+    </button>`;
+  }).join('') : '<div class="empty" style="border:none;background:none;padding:20px 14px">Nenhuma notificação ainda.</div>';
+
+  const permRow=document.getElementById('notifPermRow');
+  if(permRow){
+    if(window.Notification && Notification.permission==='default'){
+      permRow.hidden=false;
+      permRow.innerHTML='Quer avisos mesmo com a aba em segundo plano? <button onclick="requestNotifPermission()">Ativar notificações do navegador</button>';
+    } else if(window.Notification && Notification.permission==='denied'){
+      permRow.hidden=false;
+      permRow.textContent='Notificações do navegador bloqueadas — ative nas permissões do site pra receber avisos mesmo em outra aba.';
+    } else permRow.hidden=true;
+  }
 }
 function requestNotifPermission(){
   if(!window.Notification) return;
-  if(Notification.permission==='default'){ Notification.requestPermission().then(updateNotifBtn); }
-  else updateNotifBtn();
+  if(Notification.permission==='default'){ Notification.requestPermission().then(renderNotifPanel); }
+  else renderNotifPanel();
 }
 
 /* ============ FINANCEIRO (admin only) ============
