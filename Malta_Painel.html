@@ -95,7 +95,7 @@
     background:var(--danger);color:#fff;font-size:10px;font-weight:700;display:grid;place-items:center;line-height:1}
   .notif-count[hidden]{display:none}
   .notif-panel[hidden]{display:none}
-  .notif-panel{position:absolute;top:calc(100% + 8px);right:0;width:min(340px,calc(100vw - 40px));z-index:300;
+  .notif-panel{position:fixed;width:min(340px,calc(100vw - 40px));z-index:300;
     background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius);
     box-shadow:0 14px 34px rgba(0,0,0,.4);overflow:hidden}
   .notif-panel-head{display:flex;align-items:center;justify-content:space-between;gap:8px;
@@ -1266,8 +1266,11 @@ function toggleNotifPanel(){
   if(panel.hidden) openNotifPanel(); else closeNotifPanel();
 }
 function openNotifPanel(){
-  const panel=document.getElementById('notifPanel'); if(!panel)return;
+  const panel=document.getElementById('notifPanel'), btn=document.getElementById('notifBtn'); if(!panel||!btn)return;
   renderNotifPanel();
+  const r=btn.getBoundingClientRect();
+  panel.style.top=(r.bottom+8)+'px';
+  panel.style.right=Math.max(20,window.innerWidth-r.right)+'px';
   panel.hidden=false;
   document.addEventListener('click', onDocClickCloseNotif, {capture:true});
 }
