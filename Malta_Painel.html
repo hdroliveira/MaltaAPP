@@ -603,6 +603,15 @@
       </div>
       <div class="team-chips" id="teamChips"></div>
 
+      <div class="modal-sec">Admins</div>
+      <div class="row-add">
+        <input id="adminNameInput" placeholder="Nome do admin" onkeydown="if(event.key==='Enter')addAdmin()">
+        <input id="adminEmailInput" placeholder="E-mail de login (Firebase Auth)" onkeydown="if(event.key==='Enter')addAdmin()">
+        <button class="btn ghost" onclick="addAdmin()">+ Adicionar admin</button>
+      </div>
+      <div class="pal-empty" style="margin:2px 0 8px">Cadastre aqui o e-mail com que cada admin faz login no painel — é o que permite atribuir tarefas a ele e ele receber a notificação.</div>
+      <div class="team-chips" id="adminChips"></div>
+
       <div class="modal-sec">Nova atribuição</div>
       <div class="row-add">
         <input id="assignInput" placeholder="O que precisa ser feito — ex.: Criar arte do stories" onkeydown="if(event.key==='Enter')addAssignment()">
@@ -810,7 +819,7 @@ if(firebaseEnabled){
 const PALETTE = ['#7c8cf8','#5fd0a0','#e6b45f','#e5698a','#6fc4e6','#c07ef0','#e6845f','#8bd05f'];
 const DEFAULT = {
   clients:[], tasks:[], appr:[], events:{}, goals:[], links:[], files:[], dayNotes:{},
-  sheets:{}, activityLog:[], inbox:[], team:[], assignments:[], finance:[], reports:[],
+  sheets:{}, activityLog:[], inbox:[], team:[], admins:[], assignments:[], finance:[], reports:[],
   activeClient:'all', activeView:'tasks', pCount:0, pDate:'',
   calYear:new Date().getFullYear(), calMonth:new Date().getMonth(),
   assignShowDone:false, assignFilterMember:''
@@ -898,14 +907,15 @@ function startSync(){
    Um cliente vira "role=client" quando o email logado bate com o campo
    "Acesso do cliente" salvo no perfil dele. Isso só controla o que aparece
    na tela — os dados continuam todos no mesmo documento compartilhado. */
-let myTeamId=null;
+let myAssigneeId=null;
 function resolveRole(){
-  myRole='admin'; myClientId=null; myTeamId=null;
+  myRole='admin'; myClientId=null; myAssigneeId=null;
   if(!myEmail) return;
   const c=S.clients.find(cl=>(cl.loginEmail||'').trim().toLowerCase()===myEmail.toLowerCase());
   if(c){ myRole='client'; myClientId=c.id; }
   const t=(S.team||[]).find(tm=>(tm.email||'').trim().toLowerCase()===myEmail.toLowerCase());
-  if(t) myTeamId=t.id;
+  const ad=(S.admins||[]).find(am=>(am.email||'').trim().toLowerCase()===myEmail.toLowerCase());
+  if(t) myAssigneeId=t.id; else if(ad) myAssigneeId=ad.id;
 }
 function activeClientId(){ return myRole==='client' ? myClientId : S.activeClient; }
 function rolesClientList(){ return myRole==='client' ? S.clients.filter(c=>c.id===myClientId) : S.clients; }
@@ -1043,7 +1053,22 @@ function delTeamMember(id){
   (S.assignments||[]).forEach(a=>{ if(a.assignee===id) a.assignee=null; });
   logAct(`removeu "${m.name}" da equipe`); save(); renderAssignments();
 }
+function addAdmin(){
+  const n=document.getElementById('adminNameInput'); const name=n.value.trim(); if(!name)return;
+  const e=document.getElementById('adminEmailInput'); const email=e.value.trim(); if(!email)return;
+  S.admins=S.admins||[]; S.admins.push({id:uid(),name,email});
+  n.value=''; e.value=''; logAct(`adicionou "${name}" como admin`); save(); renderAssignments();
+}
+function delAdmin(id){
+  const m=(S.admins||[]).find(x=>x.id===id); if(!m)return;
+  if(!confirm(`Remover "${m.name}" dos admins? As tarefas já atribuídas a ele ficam sem responsável.`))return;
+  S.admins=S.admins.filter(x=>x.id!==id);
+  (S.assignments||[]).forEach(a=>{ if(a.assignee===id) a.assignee=null; });
+  logAct(`removeu "${m.name}" dos admins`); save(); renderAssignments();
+}
 function teamMemberById(id){ return (S.team||[]).find(m=>m.id===id); }
+function adminById(id){ return (S.admins||[]).find(m=>m.id===id); }
+function assigneeById(id){ return teamMemberById(id)||adminById(id); }
 function setAssignTab(showDone){
   S.assignShowDone=showDone;
   document.getElementById('assignTabOpen').classList.toggle('active',!showDone);
@@ -1069,22 +1094,32 @@ function delAssignment(id){
 }
 function renderAssignments(){
   const chipsEl=document.getElementById('teamChips'); if(!chipsEl)return;
-  const team=S.team||[];
+  const team=S.team||[], admins=S.admins||[];
   chipsEl.innerHTML = team.length? team.map(m=>`
     <span class="ctag">${esc(m.name)}${m.email?` · ${esc(m.email)}`:''}
       <button class="iconbtn del" style="padding:1px;margin-left:2px" onclick="delTeamMember('${m.id}')"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
     </span>`).join('') : `<span class="pal-empty">Nenhum integrante ainda — adicione acima.</span>`;
+
+  const adminChipsEl=document.getElementById('adminChips');
+  if(adminChipsEl) adminChipsEl.innerHTML = admins.length? admins.map(m=>`
+    <span class="ctag">${esc(m.name)} · ${esc(m.email)}
+      <button class="iconbtn del" style="padding:1px;margin-left:2px" onclick="delAdmin('${m.id}')"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+    </span>`).join('') : `<span class="pal-empty">Nenhum admin cadastrado ainda — adicione acima.</span>`;
 
   const clientSel=document.getElementById('assignClient');
   if(clientSel) clientSel.innerHTML = S.clients.length
     ? S.clients.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('')
     : '<option value="">Cadastre um cliente primeiro</option>';
   const teamSel=document.getElementById('assignTeam');
-  if(teamSel) teamSel.innerHTML = `<option value="">Sem responsável</option>` + team.map(m=>`<option value="${m.id}">${esc(m.name)}</option>`).join('');
+  if(teamSel) teamSel.innerHTML = `<option value="">Sem responsável</option>`
+    + (team.length?`<optgroup label="Equipe">${team.map(m=>`<option value="${m.id}">${esc(m.name)}</option>`).join('')}</optgroup>`:'')
+    + (admins.length?`<optgroup label="Admins">${admins.map(m=>`<option value="${m.id}">${esc(m.name)}</option>`).join('')}</optgroup>`:'');
 
   const filterSel=document.getElementById('assignFilterMember');
   if(filterSel){
-    filterSel.innerHTML = `<option value="">Todos os responsáveis</option><option value="unassigned">Sem responsável</option>` + team.map(m=>`<option value="${m.id}">${esc(m.name)}</option>`).join('');
+    filterSel.innerHTML = `<option value="">Todos os responsáveis</option><option value="unassigned">Sem responsável</option>`
+      + (team.length?`<optgroup label="Equipe">${team.map(m=>`<option value="${m.id}">${esc(m.name)}</option>`).join('')}</optgroup>`:'')
+      + (admins.length?`<optgroup label="Admins">${admins.map(m=>`<option value="${m.id}">${esc(m.name)}</option>`).join('')}</optgroup>`:'');
     filterSel.value = S.assignFilterMember||'';
   }
   document.getElementById('assignTabOpen').classList.toggle('active',!S.assignShowDone);
@@ -1098,7 +1133,7 @@ function renderAssignments(){
   const order={alta:0,media:1,baixa:2}; const plabel={alta:'Alta',media:'Média',baixa:'Baixa'};
   list.sort((a,b)=>order[a.prio]-order[b.prio]);
   el.innerHTML=list.map(a=>{
-    const m=teamMemberById(a.assignee);
+    const m=assigneeById(a.assignee);
     const comments=a.comments||[];
     return `<div class="task ${a.done?'done':''}">
       <button class="check" onclick="toggleAssignment('${a.id}')"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"><path d="M20 6L9 17l-5-5"/></svg></button>
@@ -1145,9 +1180,10 @@ function addAssignComment(id){
 }
 
 /* ============ NOTIFICAÇÕES DE ATRIBUIÇÃO ============
-   Cada pessoa da equipe loga com seu próprio email (ver resolveRole/myTeamId).
+   Cada pessoa (equipe ou admin) loga com seu próprio email (ver
+   resolveRole/myAssigneeId, que casa o email logado com S.team ou S.admins).
    Quando essa aba recebe, via Firestore, uma atribuição nova (ou reatribuída)
-   com assignee === myTeamId, mostramos um toast e — se autorizado — uma
+   com assignee === myAssigneeId, mostramos um toast e — se autorizado — uma
    notificação do navegador. Só funciona com a aba aberta (sem push real,
    que exigiria Service Worker + Cloud Function). Na primeira sincronização
    da sessão não notificamos nada (evita reavisar tudo que já existia) —
@@ -1157,12 +1193,12 @@ let firstSnapshotSeen=false;
 function markSnapshotSeen(){ firstSnapshotSeen=true; }
 function checkAssignmentNotifications(oldAssignments){
   if(!firstSnapshotSeen){ markSnapshotSeen(); return; }
-  if(!myTeamId) return;
+  if(!myAssigneeId) return;
   const oldById=new Map((oldAssignments||[]).map(a=>[a.id,a]));
   (S.assignments||[]).forEach(a=>{
-    if(a.assignee!==myTeamId || a.done) return;
+    if(a.assignee!==myAssigneeId || a.done) return;
     const old=oldById.get(a.id);
-    const wasMineBefore = old && old.assignee===myTeamId;
+    const wasMineBefore = old && old.assignee===myAssigneeId;
     if(!wasMineBefore) notifyNewAssignment(a);
   });
 }
@@ -1194,7 +1230,7 @@ function showAssignToast(title, body, assignId){
 }
 function updateNotifBtn(){
   const btn=document.getElementById('notifBtn'); if(!btn)return;
-  if(!myTeamId || !window.Notification){ btn.hidden=true; return; }
+  if(!myAssigneeId || !window.Notification){ btn.hidden=true; return; }
   btn.hidden=false;
   const p=Notification.permission;
   btn.classList.toggle('on', p==='granted');
