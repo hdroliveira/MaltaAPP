@@ -826,16 +826,59 @@ function setSyncBadge(state, detail){
   else if(state==='syncing'){ txt.textContent='Sincronizando…'; el.title='Enviando alterações para o servidor.'; }
   else { txt.textContent='Falha ao sincronizar'; el.title='Clique para ver o erro. As alterações NÃO estão chegando aos outros dispositivos — ficaram salvas só neste PC.'; }
 }
+/* Quebra o tamanho de S por categoria, pra mostrar o que exatamente está
+   empurrando o documento pro limite de ~1MB do Firestore — sobretudo útil
+   pra Dados/Relatórios, que guardam arquivos inteiros em base64 sem limite. */
+function computeSyncSizeBreakdown(){
+  const sizeOf=(obj)=>JSON.stringify(obj===undefined?null:obj).length;
+  const cats=[
+    {label:'Dados (arquivos)', bytes:sizeOf(S.files), del:'delFile',
+      items:(S.files||[]).map(f=>({id:f.id,label:f.name,bytes:sizeOf(f)}))},
+    {label:'Relatórios', bytes:sizeOf(S.reports), del:'delReport',
+      items:(S.reports||[]).map(f=>({id:f.id,label:f.note||f.name,bytes:sizeOf(f)}))},
+    {label:'Aprovações (mídia dos posts)', bytes:(S.appr||[]).reduce((s,a)=>s+(a.media?sizeOf(a.media):0),0), del:null,
+      items:(S.appr||[]).filter(a=>a.media).map(a=>({id:a.id,label:a.text,bytes:sizeOf(a.media)}))},
+    {label:'Fotos de clientes', bytes:(S.clients||[]).reduce((s,c)=>s+(c.photo?sizeOf(c.photo):0),0), del:null,
+      items:(S.clients||[]).filter(c=>c.photo).map(c=>({id:c.id,label:c.name,bytes:sizeOf(c.photo)}))},
+    {label:'Credenciais de clientes', bytes:(S.clients||[]).reduce((s,c)=>s+sizeOf(c.credentials||[]),0), del:null, items:[]},
+    {label:'Histórico de atividade', bytes:sizeOf(S.activityLog), del:null, items:[]},
+    {label:'Notificações', bytes:sizeOf(S.notifications), del:null, items:[]},
+    {label:'Social Inbox', bytes:sizeOf(S.inbox), del:null, items:[]},
+    {label:'Atribuições (com comentários)', bytes:sizeOf(S.assignments), del:null, items:[]}
+  ];
+  cats.sort((a,b)=>b.bytes-a.bytes);
+  return cats;
+}
 function showSyncDetail(){
-  if(lastSyncError) alert('Falha ao sincronizar com o servidor:\n\n'+lastSyncError+'\n\nAs alterações feitas neste PC ficaram salvas apenas localmente até isso ser resolvido.');
+  mBox.classList.remove('lg');
+  const cats=computeSyncSizeBreakdown();
+  const total=JSON.stringify(S).length;
+  const top=cats.find(c=>c.del && c.items.length);
+  mBox.innerHTML=`<h3>Falha ao sincronizar</h3>
+    <div style="margin-bottom:14px;color:var(--muted);font-size:13px">${esc(lastSyncError||'Erro desconhecido')} As alterações feitas neste PC ficaram salvas apenas localmente até isso ser resolvido.</div>
+    <div class="modal-sec" style="margin-top:0;padding-top:0;border-top:none">O que está ocupando espaço (~${(total/1024).toFixed(0)}KB de ~1024KB)</div>
+    <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:6px">
+      ${cats.map(c=>`<div style="display:flex;justify-content:space-between;font-size:13px"><span>${esc(c.label)}</span><b>${(c.bytes/1024).toFixed(0)}KB</b></div>`).join('')}
+    </div>
+    ${top?`<div class="modal-sec">Maiores itens em "${esc(top.label)}"</div>
+    <div style="display:flex;flex-direction:column;gap:4px;margin-bottom:8px">
+      ${[...top.items].sort((a,b)=>b.bytes-a.bytes).slice(0,10).map(it=>`
+        <div style="display:flex;justify-content:space-between;align-items:center;font-size:12.5px;gap:8px">
+          <span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(it.label||'(sem nome)')}</span>
+          <span style="display:flex;align-items:center;gap:6px;flex-shrink:0"><b>${(it.bytes/1024).toFixed(0)}KB</b>
+          <button class="iconbtn del" onclick="${top.del}('${it.id}');showSyncDetail()" title="Excluir">${XSVG}</button></span>
+        </div>`).join('')}
+    </div>`:''}
+    <div class="modal-foot"><button class="btn ghost" onclick="closeModal()">Fechar</button></div>`;
+  mBg.classList.add('open');
 }
 function showSyncErrorToast(detail){
   const wrap=document.getElementById('notifToastWrap'); if(!wrap)return;
   const el=document.createElement('div');
   el.className='notif-toast';
   el.style.borderColor='var(--danger)';
-  el.innerHTML=`<div class="t-title" style="color:var(--danger)">⚠ Falha ao sincronizar</div><div class="t-body">${esc(detail)}</div><div class="t-meta">Ficou salvo só neste navegador. Clique para fechar.</div>`;
-  el.onclick=()=>el.remove();
+  el.innerHTML=`<div class="t-title" style="color:var(--danger)">⚠ Falha ao sincronizar</div><div class="t-body">${esc(detail)}</div><div class="t-meta">Clique para ver o que está ocupando espaço.</div>`;
+  el.onclick=()=>{ el.remove(); showSyncDetail(); };
   wrap.appendChild(el);
   setTimeout(()=>el.remove(), 15000);
 }
