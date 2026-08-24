@@ -866,15 +866,22 @@ function load(){
   try{ const r = JSON.parse(localStorage.getItem('smcentral')); return r?{...DEFAULT,...r}:{...DEFAULT}; }
   catch(e){ return {...DEFAULT}; }
 }
+let pendingLocalSave=false; // true entre o momento em que uma edição é feita e o instante em
+// que ela é de fato enviada ao Firestore — nessa janela (o debounce de 400ms abaixo), o SDK
+// do Firestore não sabe que há uma escrita "a caminho", então um snapshot remoto que chegue
+// nesse meio-tempo (eco atrasado, outra aba, outro admin) não vem marcado como
+// hasPendingWrites e derrubaria a edição local antes dela sequer ser enviada.
 function save(){
   localStorage.setItem('smcentral', JSON.stringify(S));
   if(!firebaseEnabled || applyingRemote) return;
   if(!hasSynced) return; // evita sobrescrever o Firestore com dados locais desatualizados antes da 1ª sincronização
   clearTimeout(saveTimer);
+  pendingLocalSave = true;
   setSyncBadge('syncing');
   saveTimer = setTimeout(()=>{
     const toSync={...S};
     LOCAL_ONLY_KEYS.forEach(k=>delete toSync[k]);
+    pendingLocalSave = false;
     docRef.set({data:JSON.stringify(toSync)})
       .then(()=>setSyncBadge('ok'))
       .catch(e=>{ console.error('Erro ao sincronizar:', e); setSyncBadge('error', e.message); });
@@ -900,6 +907,7 @@ function startSync(){
   setSyncBadge('syncing');
   unsubscribeSync = docRef.onSnapshot({includeMetadataChanges:true}, snap=>{
     if(snap.metadata.hasPendingWrites){ hasSynced=true; return; } // eco da própria escrita local
+    if(pendingLocalSave){ hasSynced=true; return; } // há uma edição local ainda não enviada — não deixa um snapshot remoto atrasado apagá-la
     hasSynced=true;
     setSyncBadge('ok');
     if(!snap.exists){
