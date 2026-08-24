@@ -109,9 +109,10 @@
   .notif-item:hover{background:var(--surface-3)}
   .notif-item.unread{background:var(--accent-ghost)}
   .notif-item .n-dot{position:absolute;left:4px;top:16px;width:6px;height:6px;border-radius:50%;background:var(--accent)}
-  .notif-item .n-title{font-size:12.5px;font-weight:600;padding-left:10px}
+  .notif-item .n-title{font-size:12.5px;font-weight:600;padding-left:10px;padding-right:22px}
   .notif-item .n-body{font-size:12.5px;color:var(--muted);margin-top:2px;padding-left:10px}
   .notif-item .n-meta{font-size:10.5px;color:var(--muted-2);margin-top:4px;padding-left:10px}
+  .notif-item .n-del{position:absolute;top:8px;right:8px;padding:4px}
   .notif-panel-foot{padding:9px 13px;border-top:1px solid var(--border-soft);font-size:11.5px;color:var(--muted)}
   .notif-panel-foot button{color:var(--accent);font-weight:600}
   .notif-panel-foot button:hover{color:var(--text)}
@@ -1131,8 +1132,10 @@ function toggleAssignment(id){
   a.done=!a.done; logAct(`${a.done?'concluiu':'reabriu'} a atribuição "${a.text}"`); save(); renderAssignments(); renderBadges();
 }
 function delAssignment(id){
-  const a=(S.assignments||[]).find(x=>x.id===id); S.assignments=(S.assignments||[]).filter(x=>x.id!==id);
-  if(a) logAct(`excluiu a atribuição "${a.text}"`); save(); renderAssignments(); renderBadges();
+  const a=(S.assignments||[]).find(x=>x.id===id); if(!a)return;
+  if(!confirm(`Excluir a atribuição "${a.text}"? Essa ação não pode ser desfeita.`))return;
+  S.assignments=S.assignments.filter(x=>x.id!==id);
+  logAct(`excluiu a atribuição "${a.text}"`); save(); renderAssignments(); renderBadges();
 }
 function renderAssignments(){
   const chipsEl=document.getElementById('teamChips'); if(!chipsEl)return;
@@ -1275,6 +1278,11 @@ function markAllNotifsRead(){
   (S.notifications||[]).forEach(n=>{ if(n.to===myAssigneeId && !n.read){ n.read=true; changed=true; } });
   if(changed){ save(); renderNotifPanel(); }
 }
+function delNotif(id){
+  const n=(S.notifications||[]).find(x=>x.id===id); if(!n)return;
+  S.notifications=S.notifications.filter(x=>x.id!==id);
+  save(); renderNotifPanel();
+}
 function onDocClickCloseNotif(e){
   const wrap=document.getElementById('notifWrap');
   if(wrap && !wrap.contains(e.target)) closeNotifPanel();
@@ -1309,12 +1317,13 @@ function renderNotifPanel(){
   const listEl=document.getElementById('notifPanelList');
   if(listEl) listEl.innerHTML = mine.length ? mine.slice(0,50).map(n=>{
     const client=S.clients.find(c=>c.id===n.client);
-    return `<button class="notif-item ${n.read?'':'unread'}" onclick="openNotif('${n.id}')">
+    return `<div class="notif-item ${n.read?'':'unread'}" onclick="openNotif('${n.id}')">
       ${n.read?'':'<span class="n-dot"></span>'}
       <div class="n-title">${esc(n.from)} atribuiu uma tarefa para você</div>
       <div class="n-body">${esc(n.text)}${client?' — '+esc(client.name):''}</div>
       <div class="n-meta">${fmtMsgTime(n.at)}</div>
-    </button>`;
+      ${n.read?`<button class="iconbtn del n-del" onclick="event.stopPropagation();delNotif('${n.id}')" title="Excluir notificação"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>`:''}
+    </div>`;
   }).join('') : '<div class="empty" style="border:none;background:none;padding:20px 14px">Nenhuma notificação ainda.</div>';
 
   const permRow=document.getElementById('notifPermRow');
