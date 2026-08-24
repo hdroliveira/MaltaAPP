@@ -411,6 +411,7 @@
   .login-gate{position:fixed;inset:0;background:var(--bg);z-index:100;display:flex;align-items:center;justify-content:center}
   .login-gate[hidden]{display:none}
   .role-client .role-admin-only{display:none !important}
+  .role-client .role-admin-only-border{margin-top:0;padding-top:0;border-top:none}
   .role-client .clients{display:none}
   #appRoot{display:contents}
   #appRoot[hidden]{display:none}
@@ -532,18 +533,14 @@
       <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
       Clientes
     </button>
-    <button class="nav-item role-admin-only" data-view="assignments">
-      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m9 14 2 2 4-4"/></svg>
-      Atribuições <span class="badge" id="b-assign">0</span>
-    </button>
     <button class="nav-item role-admin-only" data-view="finance">
       <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
       Financeiro
     </button>
     <div class="nav-label">Trabalho</div>
-    <button class="nav-item active" data-view="tasks">
-      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
-      Tarefas <span class="badge" id="b-tasks">0</span>
+    <button class="nav-item active" data-view="assignments">
+      <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m9 14 2 2 4-4"/></svg>
+      Atribuições <span class="badge" id="b-assign">0</span>
     </button>
     <button class="nav-item" data-view="approvals">
       <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="7" height="18" rx="1"/><rect x="14" y="3" width="7" height="11" rx="1"/></svg>
@@ -602,8 +599,8 @@
   <div class="topbar">
     <div class="topbar-row">
       <div>
-        <div class="section-title" id="viewTitle">Tarefas</div>
-        <div class="section-sub" id="viewSub">O que precisa sair hoje</div>
+        <div class="section-title" id="viewTitle">Atribuições</div>
+        <div class="section-sub" id="viewSub">Distribua tarefas da equipe por cliente</div>
       </div>
       <div class="notif-wrap" id="notifWrap" hidden>
         <button class="notif-btn" id="notifBtn" onclick="toggleNotifPanel()" title="Notificações">
@@ -632,18 +629,18 @@
       <div class="client-grid" id="clientGrid"></div>
     </section>
 
-    <!-- ASSIGNMENTS (admin only) -->
-    <section class="view" id="v-assignments">
-      <div class="modal-sec" style="margin-top:0;padding-top:0;border-top:none">Equipe</div>
-      <div class="row-add">
+    <!-- ASSIGNMENTS -->
+    <section class="view active" id="v-assignments">
+      <div class="modal-sec role-admin-only" style="margin-top:0;padding-top:0;border-top:none">Equipe</div>
+      <div class="row-add role-admin-only">
         <input id="teamNameInput" placeholder="Nome do responsável" onkeydown="if(event.key==='Enter')addTeamMember()">
         <input id="teamEmailInput" placeholder="E-mail de login (opcional)" onkeydown="if(event.key==='Enter')addTeamMember()">
         <button class="btn ghost" onclick="addTeamMember()">+ Adicionar à equipe</button>
       </div>
-      <div class="pal-empty" style="margin:2px 0 8px">O e-mail é opcional — só é necessário se essa pessoa também faz login no painel (com esse mesmo e-mail criado em Authentication &gt; Users). É o que ativa as notificações quando ela é atribuída a algo.</div>
-      <div class="team-chips" id="teamChips"></div>
+      <div class="pal-empty role-admin-only" style="margin:2px 0 8px">O e-mail é opcional — só é necessário se essa pessoa também faz login no painel (com esse mesmo e-mail criado em Authentication &gt; Users). É o que ativa as notificações quando ela é atribuída a algo.</div>
+      <div class="team-chips role-admin-only" id="teamChips"></div>
 
-      <div class="modal-sec">Nova atribuição</div>
+      <div class="modal-sec role-admin-only-border">Nova atribuição</div>
       <div class="row-add">
         <input id="assignInput" placeholder="O que precisa ser feito — ex.: Criar arte do stories" onkeydown="if(event.key==='Enter')addAssignment()">
         <select id="assignClient"></select>
@@ -677,16 +674,6 @@
         <button class="btn" onclick="addFinance()">Adicionar cobrança</button>
       </div>
       <div id="finList"></div>
-    </section>
-
-    <!-- TASKS -->
-    <section class="view active" id="v-tasks">
-      <div class="row-add">
-        <input id="taskInput" placeholder="Nova tarefa — ex.: Agendar reels de terça" onkeydown="if(event.key==='Enter')addTask()">
-        <select id="taskPrio"><option value="media">Média</option><option value="alta">Alta</option><option value="baixa">Baixa</option></select>
-        <button class="btn" onclick="addTask()">Adicionar</button>
-      </div>
-      <div id="taskList"></div>
     </section>
 
     <!-- APPROVALS -->
@@ -851,7 +838,7 @@ const PALETTE = ['#7c8cf8','#5fd0a0','#e6b45f','#e5698a','#6fc4e6','#c07ef0','#e
 const DEFAULT = {
   clients:[], tasks:[], appr:[], events:{}, goals:[], links:[], files:[], dayNotes:{},
   sheets:{}, activityLog:[], inbox:[], team:[], assignments:[], notifications:[], finance:[], reports:[],
-  activeClient:'all', activeView:'tasks', pCount:0, pDate:'',
+  activeClient:'all', activeView:'assignments', pCount:0, pDate:'',
   calYear:new Date().getFullYear(), calMonth:new Date().getMonth(),
   assignShowDone:false, assignFilterMember:''
 };
@@ -958,10 +945,10 @@ function resolveRole(){
 }
 function activeClientId(){ return myRole==='client' ? myClientId : S.activeClient; }
 function rolesClientList(){ return myRole==='client' ? S.clients.filter(c=>c.id===myClientId) : S.clients; }
-const RESTRICTED_VIEWS=['clients','assignments','finance','sheet','files','focus','activity'];
+const RESTRICTED_VIEWS=['clients','finance','sheet','files','focus','activity'];
 function applyRoleUI(){
   document.body.classList.toggle('role-client', myRole==='client');
-  if(myRole==='client' && RESTRICTED_VIEWS.includes(S.activeView)) showView('tasks');
+  if(myRole==='client' && RESTRICTED_VIEWS.includes(S.activeView)) showView('assignments');
   renderNotifPanel();
 }
 
@@ -1008,7 +995,6 @@ const VIEWS={
   clients:['Clientes','Perfil completo de cada conta'],
   assignments:['Atribuições','Distribua tarefas da equipe por cliente'],
   finance:['Financeiro','Cobranças, pagamentos e receita por cliente'],
-  tasks:['Tarefas','O que precisa sair hoje'],
   approvals:['Aprovações','Status de cada post — arraste entre as colunas'],
   calendar:['Calendário','Planejamento e agendamentos'],
   goals:['Metas','Progresso das campanhas'],
@@ -1147,8 +1133,9 @@ function renderAssignments(){
     </span>`).join('') : `<span class="pal-empty">Nenhum integrante ainda — adicione acima.</span>`;
 
   const clientSel=document.getElementById('assignClient');
-  if(clientSel) clientSel.innerHTML = S.clients.length
-    ? S.clients.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('')
+  const assignClients=rolesClientList();
+  if(clientSel) clientSel.innerHTML = assignClients.length
+    ? assignClients.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('')
     : '<option value="">Cadastre um cliente primeiro</option>';
   const teamSel=document.getElementById('assignTeam');
   if(teamSel) teamSel.innerHTML = `<option value="">Sem responsável</option>` + team.map(m=>`<option value="${m.id}">${esc(m.name)}</option>`).join('');
@@ -1179,7 +1166,7 @@ function renderAssignments(){
         <span class="ctag">${m?esc(m.name):'Sem responsável'}</span>
         <span class="prio ${a.prio}">${plabel[a.prio]}</span>
         <button class="card-comments" onclick="openAssignComments('${a.id}')" title="Comentar / tirar dúvida"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>${comments.length||''}</button>
-        <button class="iconbtn del" onclick="delAssignment('${a.id}')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button>
+        ${myRole!=='client'?`<button class="iconbtn del" onclick="delAssignment('${a.id}')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button>`:''}
       </div>
     </div>`;
   }).join('');
@@ -1443,32 +1430,6 @@ function renderFinanceYearly(list){
       <tr class="${i===curM?'cur':''}"><td>${name}</td><td>${finCurrency.format(totals[i].billed)}</td><td>${finCurrency.format(totals[i].received)}</td></tr>`).join('')}
     </tbody>
     <tfoot><tr><td>Total ${year}</td><td>${finCurrency.format(yearBilled)}</td><td>${finCurrency.format(yearReceived)}</td></tr></tfoot>`;
-}
-
-/* ============ TASKS ============ */
-function addTask(){
-  const i=document.getElementById('taskInput'); const t=i.value.trim(); if(!t)return;
-  S.tasks.unshift({id:uid(),text:t,prio:document.getElementById('taskPrio').value,done:false,client:currentClientForNew()});
-  i.value=''; logAct(`criou a tarefa "${t}"`); save(); renderTasks(); renderBadges();
-}
-function toggleTask(id){ const t=S.tasks.find(x=>x.id===id); t.done=!t.done; logAct(`${t.done?'concluiu':'reabriu'} a tarefa "${t.text}"`); save(); renderTasks(); renderBadges(); }
-function delTask(id){ const t=S.tasks.find(x=>x.id===id); S.tasks=S.tasks.filter(x=>x.id!==id); if(t) logAct(`excluiu a tarefa "${t.text}"`); save(); renderTasks(); renderBadges(); }
-function renderTasks(){
-  const list=S.tasks.filter(t=>matchClient(t.client));
-  const el=document.getElementById('taskList');
-  if(!list.length){ el.innerHTML=empty('Nenhuma tarefa por aqui','Adicione a primeira acima para começar o dia.'); return; }
-  const order={alta:0,media:1,baixa:2}; const plabel={alta:'Alta',media:'Média',baixa:'Baixa'};
-  list.sort((a,b)=>(a.done-b.done)||(order[a.prio]-order[b.prio]));
-  el.innerHTML=list.map(t=>`
-    <div class="task ${t.done?'done':''}">
-      <button class="check" onclick="toggleTask('${t.id}')"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"><path d="M20 6L9 17l-5-5"/></svg></button>
-      <div class="task-txt">${esc(t.text)}</div>
-      <div class="task-meta">
-        ${activeClientId()==='all'?clientTag(t.client):''}
-        <span class="prio ${t.prio}">${plabel[t.prio]}</span>
-        <button class="iconbtn del" onclick="delTask('${t.id}')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg></button>
-      </div>
-    </div>`).join('');
 }
 
 /* ============ APPROVALS ============ */
@@ -2159,7 +2120,7 @@ function clientModalBody(c){
     <div class="field">
       <label>E-mail de login do cliente</label>
       <input id="mCLoginEmail" placeholder="email@cliente.com" value="${esc(c?.loginEmail||'')}">
-      <div class="cred-hint">Preencha só se esse cliente tiver login próprio (criado em Authentication &gt; Users no Firebase). Ele verá apenas Tarefas, Aprovações, Calendário, Metas e Links — nada de outros clientes, planilha, dados ou credenciais. Deixe em branco para acesso de admin.</div>
+      <div class="cred-hint">Preencha só se esse cliente tiver login próprio (criado em Authentication &gt; Users no Firebase). Ele verá apenas Atribuições (só as dele, sem gerenciar equipe), Aprovações, Calendário, Metas e Links — nada de outros clientes, planilha, dados ou credenciais. Deixe em branco para acesso de admin.</div>
     </div>
 
     <div class="modal-sec">Credenciais e senhas</div>
@@ -2267,7 +2228,7 @@ function updateClient(id){
   resolveRole(); applyRoleUI(); renderAll();
 }
 function removeClient(id){
-  if(!confirm('Excluir este cliente? Tarefas, links e outros itens ligados a ele continuam salvos, mas sem etiqueta. A planilha exclusiva desse cliente será apagada.'))return;
+  if(!confirm('Excluir este cliente? Atribuições, links e outros itens ligados a ele continuam salvos, mas sem etiqueta. A planilha exclusiva desse cliente será apagada.'))return;
   const c=clientById(id);
   S.clients=S.clients.filter(c=>c.id!==id); delete S.sheets[id];
   if(S.activeClient===id)S.activeClient='all'; if(c) logAct(`excluiu o cliente "${c.name}"`); save(); closeModal(); renderAll();
@@ -2344,14 +2305,13 @@ function delEvent(key,i){ const e=S.events[key]?.[i]; S.events[key].splice(i,1);
 /* ============ HELPERS ============ */
 function empty(title,sub){ return `<div class="empty"><b>${title}</b>${sub}</div>`; }
 function renderBadges(){
-  document.getElementById('b-tasks').textContent=S.tasks.filter(t=>!t.done&&matchClient(t.client)).length;
   document.getElementById('b-appr').textContent=S.appr.filter(a=>a.stage!=='publicado'&&matchClient(a.client)).length;
   document.getElementById('b-goals').textContent=S.goals.filter(g=>matchClient(g.client)).length;
   document.getElementById('b-inbox').textContent=(S.inbox||[]).filter(t=>t.status!=='resolvido'&&matchClient(t.client)).length;
   document.getElementById('b-assign').textContent=(S.assignments||[]).filter(a=>!a.done&&matchClient(a.client)).length;
 }
 function renderAll(){
-  renderClients(); renderAssignments(); renderFinance(); renderTasks(); renderBoard(); renderCal(); renderGoals(); renderInbox();
+  renderClients(); renderAssignments(); renderFinance(); renderBoard(); renderCal(); renderGoals(); renderInbox();
   renderLinks(); renderReports(); renderSheet(); renderFiles(); renderBadges(); renderActivity();
 }
 function renderActivity(){
@@ -2397,7 +2357,7 @@ function resetAllData(){
 
 /* ============ INIT ============ */
 checkDay(); document.getElementById('pCount').textContent=S.pCount;
-switchView(S.activeView||'tasks');
+switchView(S.activeView||'assignments');
 renderAll(); paintTimer(); tickClock(); setInterval(tickClock,10000);
 initAuth();
 </script>
