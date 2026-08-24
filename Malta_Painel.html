@@ -814,8 +814,11 @@ const firebaseEnabled = firebaseConfig.apiKey !== "COLE_AQUI";
 let db=null, docRef=null, applyingRemote=false, saveTimer=null, myEmail='';
 let hasSynced=false; // true only after the first real snapshot arrives from Firestore
 let lastSyncError=null;
+let syncErrorToastShown=false; // evita reabrir o toast a cada nova tentativa que também falhar
 function setSyncBadge(state, detail){
   lastSyncError = state==='error' ? (detail||'Erro desconhecido') : null;
+  if(state==='error'){ if(!syncErrorToastShown){ syncErrorToastShown=true; showSyncErrorToast(lastSyncError); } }
+  else syncErrorToastShown=false;
   const el=document.getElementById('syncBadge'), txt=document.getElementById('syncBadgeText');
   if(!el) return;
   el.className='sync-badge '+state;
@@ -825,6 +828,16 @@ function setSyncBadge(state, detail){
 }
 function showSyncDetail(){
   if(lastSyncError) alert('Falha ao sincronizar com o servidor:\n\n'+lastSyncError+'\n\nAs alterações feitas neste PC ficaram salvas apenas localmente até isso ser resolvido.');
+}
+function showSyncErrorToast(detail){
+  const wrap=document.getElementById('notifToastWrap'); if(!wrap)return;
+  const el=document.createElement('div');
+  el.className='notif-toast';
+  el.style.borderColor='var(--danger)';
+  el.innerHTML=`<div class="t-title" style="color:var(--danger)">⚠ Falha ao sincronizar</div><div class="t-body">${esc(detail)}</div><div class="t-meta">Ficou salvo só neste navegador. Clique para fechar.</div>`;
+  el.onclick=()=>el.remove();
+  wrap.appendChild(el);
+  setTimeout(()=>el.remove(), 15000);
 }
 let myRole='admin', myClientId=null;
 if(firebaseEnabled){
@@ -881,10 +894,23 @@ function save(){
   saveTimer = setTimeout(()=>{
     const toSync={...S};
     LOCAL_ONLY_KEYS.forEach(k=>delete toSync[k]);
-    pendingLocalSave = false;
-    docRef.set({data:JSON.stringify(toSync)})
-      .then(()=>setSyncBadge('ok'))
-      .catch(e=>{ console.error('Erro ao sincronizar:', e); setSyncBadge('error', e.message); });
+    const payload=JSON.stringify(toSync);
+    // Firestore recusa documentos acima de ~1MB — com fotos de cliente em base64,
+    // credenciais, histórico etc. tudo num único documento, isso é alcançável.
+    // Falha aqui antes de tentar, com um aviso claro, em vez de deixar o SDK
+    // rejeitar silenciosamente e a próxima sincronização "devolver" os dados antigos.
+    if(payload.length>900000){
+      pendingLocalSave=false;
+      setSyncBadge('error', `Os dados ficaram grandes demais para sincronizar (${(payload.length/1024).toFixed(0)}KB de ~1024KB permitidos pelo Firestore) — provavelmente fotos de clientes salvas em base64. Essa alteração ficou só neste navegador. Reduza fotos/credenciais para liberar espaço.`);
+      return;
+    }
+    docRef.set({data:payload})
+      .then(()=>{ pendingLocalSave=false; setSyncBadge('ok'); })
+      .catch(e=>{
+        pendingLocalSave=false;
+        console.error('Erro ao sincronizar:', e);
+        setSyncBadge('error', e.message);
+      });
   }, 400);
 }
 function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
