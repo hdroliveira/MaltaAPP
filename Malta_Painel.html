@@ -852,6 +852,9 @@ let S = load();
 if(S.sheet){ if(!S.sheets['all']) S.sheets['all']=S.sheet; delete S.sheet; save(); }
 /* migrate the old separate "Admins" list back into Equipe — mesma lista faz tudo agora */
 if(migrateAdminsIntoTeam(S)) save();
+/* a aba Tarefas foi removida — quem tinha ela como última aba aberta (o padrão
+   antigo) cairia num VIEWS['tasks'] inexistente e travava o carregamento inteiro */
+if(S.activeView==='tasks'){ S.activeView='assignments'; save(); }
 
 function migrateAdminsIntoTeam(obj){
   if(!obj.admins || !obj.admins.length){ delete obj.admins; return false; }
@@ -1010,6 +1013,7 @@ document.querySelectorAll('.nav-item').forEach(b=>{
   b.onclick=()=>switchView(b.dataset.view);
 });
 function showView(v){
+  if(!VIEWS[v]) v='assignments';
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.toggle('active',n.dataset.view===v));
   document.querySelectorAll('.view').forEach(s=>s.classList.toggle('active',s.id==='v-'+v));
   document.getElementById('viewTitle').textContent=VIEWS[v][0];
