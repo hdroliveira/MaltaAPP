@@ -1091,6 +1091,23 @@ function delTeamMember(id){
   (S.assignments||[]).forEach(a=>{ if(a.assignee===id) a.assignee=null; });
   logAct(`removeu "${m.name}" da equipe`); save(); renderAssignments();
 }
+function editTeamMember(id){
+  const m=(S.team||[]).find(x=>x.id===id); if(!m)return;
+  mBox.classList.remove('lg');
+  mBox.innerHTML=`<h3>Editar integrante</h3>
+    <div class="field"><label>Nome</label><input id="mTeamName" value="${esc(m.name)}" onkeydown="if(event.key==='Enter')updateTeamMember('${id}')"></div>
+    <div class="field"><label>E-mail de login (opcional)</label><input id="mTeamEmail" value="${esc(m.email||'')}" placeholder="email@exemplo.com" onkeydown="if(event.key==='Enter')updateTeamMember('${id}')"></div>
+    <div class="modal-foot"><button class="btn ghost" onclick="closeModal()">Cancelar</button><button class="btn" onclick="updateTeamMember('${id}')">Salvar</button></div>`;
+  mBg.classList.add('open');
+  setTimeout(()=>document.getElementById('mTeamName').focus(),50);
+}
+function updateTeamMember(id){
+  const m=(S.team||[]).find(x=>x.id===id); if(!m)return;
+  const name=document.getElementById('mTeamName').value.trim(); if(!name)return;
+  const email=document.getElementById('mTeamEmail').value.trim();
+  m.name=name; m.email=email;
+  logAct(`editou o integrante "${name}" da equipe`); save(); closeModal(); renderAssignments();
+}
 function teamMemberById(id){ return (S.team||[]).find(m=>m.id===id); }
 function setAssignTab(showDone){
   S.assignShowDone=showDone;
@@ -1122,7 +1139,8 @@ function renderAssignments(){
   const team=S.team||[];
   chipsEl.innerHTML = team.length? team.map(m=>`
     <span class="ctag">${esc(m.name)}${m.email?` · ${esc(m.email)}`:''}
-      <button class="iconbtn del" style="padding:1px;margin-left:2px" onclick="delTeamMember('${m.id}')"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+      <button class="iconbtn edit" style="padding:1px;margin-left:2px" onclick="editTeamMember('${m.id}')" title="Editar"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg></button>
+      <button class="iconbtn del" style="padding:1px" onclick="delTeamMember('${m.id}')" title="Remover"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
     </span>`).join('') : `<span class="pal-empty">Nenhum integrante ainda — adicione acima.</span>`;
 
   const clientSel=document.getElementById('assignClient');
