@@ -8,5 +8,8 @@
       "**/node_modules/**",
       "*.Zone.Identifier"
     ]
+  },
+  "storage": {
+    "rules": "storage.rules"
   }
 }

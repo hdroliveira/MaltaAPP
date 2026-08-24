@@ -10,6 +10,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-storage-compat.js"></script>
 <style>
   :root{
     --bg:#0b0c10; --surface:#15171f; --surface-2:#1c1f2a; --surface-3:#262a38;
@@ -811,7 +812,7 @@ const firebaseConfig = {
   measurementId: "G-10BYF83PL3"
 };
 const firebaseEnabled = firebaseConfig.apiKey !== "COLE_AQUI";
-let db=null, docRef=null, applyingRemote=false, saveTimer=null, myEmail='';
+let db=null, docRef=null, storage=null, applyingRemote=false, saveTimer=null, myEmail='';
 let hasSynced=false; // true only after the first real snapshot arrives from Firestore
 let lastSyncError=null;
 let syncErrorToastShown=false; // evita reabrir o toast a cada nova tentativa que também falhar
@@ -887,6 +888,7 @@ if(firebaseEnabled){
   firebase.initializeApp(firebaseConfig);
   db = firebase.firestore();
   docRef = db.collection('smcentral').doc('shared');
+  storage = firebase.storage();
 }
 
 /* ============ STATE ============ */
@@ -1920,35 +1922,54 @@ function compressImage(file,maxDim,quality){
     reader.readAsDataURL(file);
   });
 }
+/* Arquivos de Dados e Relatórios vão para o Firebase Storage em vez de dentro
+   do documento único do Firestore (que tem limite de ~1MB) — só a URL de
+   download (poucas dezenas de bytes) fica salva em S. Entradas antigas, de
+   antes dessa mudança, ainda têm o arquivo em base64 no campo "data" e
+   continuam funcionando (ver f.url||f.data abaixo). */
+async function uploadDataUrlToStorage(dataUrl, folder, filename){
+  if(!firebaseEnabled || !storage) return {url:dataUrl, size:Math.round(dataUrl.length*.75), storagePath:null};
+  const path=`${folder}/${uid()}-${filename}`;
+  const snap=await storage.ref().child(path).putString(dataUrl,'data_url');
+  const url=await snap.ref.getDownloadURL();
+  return {url, size:snap.metadata.size, storagePath:path};
+}
+function deleteFromStorage(storagePath){
+  if(!storagePath || !storage) return;
+  storage.ref().child(storagePath).delete().catch(e=>console.error('Erro ao remover arquivo do Storage:', e));
+}
 function triggerFileUpload(){ document.getElementById('fileUploadInput').click(); }
 async function handleFileUpload(e){
   const files=[...e.target.files]; e.target.value='';
   const cl=currentClientForNew();
   let failed=false;
   for(const f of files){
-    const dataUrl = f.type.startsWith('image/') ? await compressImage(f,1600,.82) : await readAsDataURL(f);
-    const size = Math.round(dataUrl.length*.75);
-    const entry={id:uid(),name:f.name,type:f.type,size,data:dataUrl,client:cl,date:Date.now()};
-    S.files.unshift(entry);
-    try{ logAct(`enviou o arquivo "${f.name}"`); save(); } catch(err){ S.files.shift(); S.activityLog.shift(); failed=true; }
+    try{
+      const dataUrl = f.type.startsWith('image/') ? await compressImage(f,1600,.82) : await readAsDataURL(f);
+      const up = await uploadDataUrlToStorage(dataUrl,'files',f.name);
+      const entry={id:uid(),name:f.name,type:f.type,size:up.size,url:up.url,storagePath:up.storagePath,client:cl,date:Date.now()};
+      S.files.unshift(entry);
+      logAct(`enviou o arquivo "${f.name}"`); save();
+    } catch(err){ console.error('Erro ao enviar arquivo:', err); failed=true; }
   }
   renderFiles();
-  if(failed) alert('Alguns arquivos não couberam no armazenamento local do navegador (limite de poucos MB). Remova arquivos antigos ou envie imagens/PDFs menores.');
+  if(failed) alert('Alguns arquivos não puderam ser enviados. Verifique sua conexão e tente novamente.');
 }
 function delFile(id){
   const f=S.files.find(x=>x.id===id); if(!f)return;
   if(!confirm(`Excluir o arquivo "${f.name}"? Essa ação não pode ser desfeita.`))return;
   S.files=S.files.filter(x=>x.id!==id); logAct(`excluiu o arquivo "${f.name}"`); save(); renderFiles();
+  deleteFromStorage(f.storagePath);
 }
 function renderFiles(){
   const list=S.files.filter(f=>matchClient(f.client));
   const el=document.getElementById('fileGrid');
   if(!list.length){ el.innerHTML=empty('Nenhum arquivo arquivado','Envie fotos, PDFs e outros documentos para guardar aqui.'); return; }
   el.innerHTML=list.map(f=>{
-    const isImg=f.type.startsWith('image/');
-    const thumb=isImg?`<img class="file-thumb" src="${f.data}" alt="">`:`<div class="file-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg><span class="ext">${fileExt(f.name)}</span></div>`;
+    const isImg=f.type.startsWith('image/'); const src=f.url||f.data;
+    const thumb=isImg?`<img class="file-thumb" src="${src}" alt="">`:`<div class="file-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg><span class="ext">${fileExt(f.name)}</span></div>`;
     return `<div class="file-card">
-      <a class="file-open" href="${f.data}" download="${esc(f.name)}" target="_blank" rel="noopener">
+      <a class="file-open" href="${src}" download="${esc(f.name)}" target="_blank" rel="noopener">
         ${thumb}
         <div class="file-name" title="${esc(f.name)}">${esc(f.name)}</div>
         <div class="file-meta">${humanSize(f.size)} · ${new Date(f.date).toLocaleDateString('pt-BR',{day:'2-digit',month:'short'})}</div>
@@ -1971,20 +1992,23 @@ async function handleReportUpload(e){
   const noteEl=document.getElementById('repNote'); const note=noteEl?noteEl.value.trim():'';
   let failed=false;
   for(const f of files){
-    const dataUrl = f.type.startsWith('image/') ? await compressImage(f,1600,.82) : await readAsDataURL(f);
-    const size = Math.round(dataUrl.length*.75);
-    const entry={id:uid(),name:f.name,note,type:f.type,size,data:dataUrl,client:cl,date:Date.now()};
-    S.reports=S.reports||[]; S.reports.unshift(entry);
-    try{ logAct(`enviou o relatório "${note||f.name}"`); save(); } catch(err){ S.reports.shift(); S.activityLog.shift(); failed=true; }
+    try{
+      const dataUrl = f.type.startsWith('image/') ? await compressImage(f,1600,.82) : await readAsDataURL(f);
+      const up = await uploadDataUrlToStorage(dataUrl,'reports',f.name);
+      const entry={id:uid(),name:f.name,note,type:f.type,size:up.size,url:up.url,storagePath:up.storagePath,client:cl,date:Date.now()};
+      S.reports=S.reports||[]; S.reports.unshift(entry);
+      logAct(`enviou o relatório "${note||f.name}"`); save();
+    } catch(err){ console.error('Erro ao enviar relatório:', err); failed=true; }
   }
   if(noteEl) noteEl.value='';
   renderReports();
-  if(failed) alert('Alguns arquivos não couberam no armazenamento local do navegador (limite de poucos MB). Remova relatórios antigos ou envie arquivos menores.');
+  if(failed) alert('Alguns arquivos não puderam ser enviados. Verifique sua conexão e tente novamente.');
 }
 function delReport(id){
   const f=(S.reports||[]).find(x=>x.id===id); if(!f)return;
   if(!confirm(`Excluir o relatório "${f.note||f.name}"? Essa ação não pode ser desfeita.`))return;
   S.reports=(S.reports||[]).filter(x=>x.id!==id); logAct(`excluiu o relatório "${f.note||f.name}"`); save(); renderReports();
+  deleteFromStorage(f.storagePath);
 }
 function renderReports(){
   const el=document.getElementById('reportGrid'); if(!el)return;
@@ -1997,10 +2021,10 @@ function renderReports(){
     return;
   }
   el.innerHTML=list.map(f=>{
-    const isImg=f.type.startsWith('image/');
-    const thumb=isImg?`<img class="file-thumb" src="${f.data}" alt="">`:`<div class="file-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg><span class="ext">${fileExt(f.name)}</span></div>`;
+    const isImg=f.type.startsWith('image/'); const src=f.url||f.data;
+    const thumb=isImg?`<img class="file-thumb" src="${src}" alt="">`:`<div class="file-icon"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg><span class="ext">${fileExt(f.name)}</span></div>`;
     return `<div class="file-card">
-      <a class="file-open" href="${f.data}" download="${esc(f.name)}" target="_blank" rel="noopener">
+      <a class="file-open" href="${src}" download="${esc(f.name)}" target="_blank" rel="noopener">
         ${thumb}
         <div class="file-name" title="${esc(f.note||f.name)}">${esc(f.note||f.name)}</div>
         <div class="file-meta">${humanSize(f.size)} · ${new Date(f.date).toLocaleDateString('pt-BR',{day:'2-digit',month:'short'})}</div>
